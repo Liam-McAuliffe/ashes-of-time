@@ -1,0 +1,8 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-rust: #e06c52; /* Terracotta/Rust - Good for accents, buttons, warnings */
+  --color-charcoal: #373635; /* Dark Gray/Charcoal - Good for base text, dark backgrounds */
+  --color-olive: #868173; /* Muted Olive/Gray-Green - Good for secondary text, borders, subtle backgrounds */
+  --color-stone: #eceae8; /* Light Gray/Off-White - Good for main backgrounds, card backgrounds */
+}
