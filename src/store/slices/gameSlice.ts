@@ -57,8 +57,7 @@ export const fetchEvent = createAsyncThunk<
       water: state.water,
       survivors: state.survivors,
       theme: state.theme,
-      previousDayOutcome: state.lastOutcome,
-      eventHistory: state.eventHistory,
+      eventHistory: state.eventHistory?.slice(-3),
     };
 
     const eventData = await fetchGameEvent(context);
@@ -77,18 +76,18 @@ const gameSlice = createSlice({
       let tempFood = startingFood - (choice.cost?.food || 0);
       let tempWater = startingWater - (choice.cost?.water || 0);
       
-      tempFood += choice.effects?.food || 0;
-      tempWater += choice.effects?.water || 0;
+      tempFood += choice.foodChange || 0;
+      tempWater += choice.waterChange || 0;
       
       let survivorsAfterChoice = applySurvivorChanges(
         state.survivors,
-        choice.effects?.survivorChanges
+        choice.survivorChanges
       );
 
       tempFood = Math.max(0, tempFood);
       tempWater = Math.max(0, tempWater);
 
-      state.lastOutcome = choice.outcome || `You chose: ${choice.text}`;
+      state.lastOutcome = choice.outcome || `You chose: ${choice.action}`;
       state.currentChoices = null;
 
       let newlyAddedCompanionInfo: { survivorId: string; companion: Companion } | null = null;
@@ -221,18 +220,19 @@ const gameSlice = createSlice({
       })
       .addCase(fetchEvent.fulfilled, (state, action: PayloadAction<EventResponse>) => {
         const { description, choices } = action.payload;
-        const finalChoices = 
+        const finalChoices: GameChoice[] = 
             Array.isArray(choices) && choices.length > 0
             ? choices
             : [
                 {
-                    id: 'continue',
-                    text: 'Acknowledge and continue...',
+                    action: 'Acknowledge and continue...',
                     cost: { food: 0, water: 0 },
                     outcome: 'You acknowledge the situation and prepare for what comes next.',
-                    effects: { food: 0, water: 0, survivorChanges: [] },
+                    foodChange: 0, 
+                    waterChange: 0, 
+                    survivorChanges: [],
                 },
-                ];
+              ];
 
         state.isLoading = false;
         state.eventText = description || 'An eerie silence hangs in the air.';
@@ -245,11 +245,12 @@ const gameSlice = createSlice({
         state.eventText = 'Radio interference blocks the signal. Unable to get a clear situation report.';
         state.currentChoices = [
           {
-            id: 'wait_error',
-            text: 'Hunker down and wait...',
+            action: 'Hunker down and wait...',
             cost: { food: 0, water: 0 },
             outcome: 'You cautiously wait, conserving energy.',
-            effects: { food: 0, water: 0, survivorChanges: [] },
+            foodChange: 0, 
+            waterChange: 0, 
+            survivorChanges: [],
           },
         ];
       });

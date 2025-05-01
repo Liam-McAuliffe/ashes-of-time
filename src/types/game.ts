@@ -30,18 +30,17 @@ export interface SurvivorChange {
 }
 
 export interface GameChoice {
-  id: string;
-  text: string;
-  cost: {
-    food: number;
-    water: number;
+  // id: string; // Removed, as it doesn't seem to come from the API
+  action: string; // Renamed from 'text'
+  cost?: { // Made optional, assuming it might not always be present
+    food?: number; // Made optional
+    water?: number; // Made optional
   };
   outcome: string;
-  effects: {
-    food: number;
-    water: number;
-    survivorChanges?: SurvivorChange[];
-  };
+  // Removed the 'effects' nesting
+  foodChange?: number; // Added (optional)
+  waterChange?: number; // Added (optional)
+  survivorChanges?: SurvivorChange[]; // Moved from effects (optional)
 }
 
 // Add type for event history entries

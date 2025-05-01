@@ -1,5 +1,6 @@
 import React from 'react';
 import { Droplet, HeartPulse, Users, Target, BookOpen } from 'lucide-react';
+import Image from 'next/image';
 
 interface PrologueProps {
   onStartGame: () => void;
@@ -8,7 +9,14 @@ interface PrologueProps {
 const Prologue: React.FC<PrologueProps> = ({ onStartGame }) => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-charcoal p-4 md:p-8 text-stone font-mono space-y-8 animate-fade-in">
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center justify-center gap-4 mb-4">
+        <Image 
+          src="/ashes-logo.webp" 
+          alt="Ashes of Time" 
+          width={100}
+          height={100} 
+          className="drop-shadow-lg"
+        />
         <h1 className="text-5xl md:text-6xl font-bold text-rust tracking-wider">
           Ashes of Time
         </h1>

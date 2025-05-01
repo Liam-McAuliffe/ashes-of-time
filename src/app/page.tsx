@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useAppSelector, useAppDispatch, useEventFetcher } from '../hooks';
 import {
   applyChoice,
@@ -91,6 +92,18 @@ export default function GamePage() {
           
           {/* Column 1: Status Info */}
           <div className="md:w-1/3 lg:w-1/4 flex flex-col gap-4">
+              <div className="mb-2 flex items-center justify-around md:justify-start gap-2">
+                <Image 
+                  src="/ashes-logo.webp" 
+                  alt="Ashes of Time" 
+                  width={50} 
+                  height={50} 
+                  className="drop-shadow-md"
+                />
+                <span className="text-4xl font-bold text-rust tracking-wider">
+                  Ashes of Time
+                </span>
+              </div>
               <ResourceDisplay
                 day={gameState.day}
                 food={gameState.food}

@@ -30,19 +30,19 @@ const ChoiceList: React.FC<ChoiceListProps> = ({
   return (
     <div className="space-y-3">
       <h3 className="text-lg font-semibold text-charcoal border-b border-olive/30 pb-2">Choose an Action:</h3>
-      {choices.map((choice) => {
+      {choices.map((choice, index) => {
         const isAffordable = canAffordChoice(choice);
         const isDisabled = isLoading || !isAffordable;
 
         return (
           <button
-            key={choice.id}
+            key={index}
             onClick={() => onChoiceSelected(choice)}
             disabled={isDisabled}
             className={`${buttonBase} ${isDisabled ? buttonDisabled : buttonEnabled}`}
           >
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <span className="flex-grow text-charcoal font-medium">{choice.text}</span>
+              <span className="flex-grow text-charcoal font-medium">{choice.action}</span>
               {(choice.cost?.food > 0 || choice.cost?.water > 0) && (
                 <div className="flex items-center gap-3 text-sm flex-shrink-0">
                   {choice.cost.food > 0 && (

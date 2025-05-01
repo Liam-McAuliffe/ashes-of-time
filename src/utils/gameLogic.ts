@@ -50,8 +50,31 @@ export function applySurvivorChanges(
 ): Survivor[] {
   if (!changes || changes.length === 0) return survivors;
 
+  const MAX_SURVIVORS = 5;
   let tempSurvivors = JSON.parse(JSON.stringify(survivors));
+
   changes.forEach((change) => {
+    // Handle adding a new survivor first
+    if (change.new === true) {
+      if (tempSurvivors.length < MAX_SURVIVORS) {
+        const newSurvivor: Survivor = {
+          id: `survivor_${Date.now()}_${Math.random().toString(16).slice(2)}`,
+          name: change.name || 'Newcomer', // Use provided name or default
+          health: typeof change.health === 'number' ? Math.max(0, Math.min(100, change.health)) : 80, // Use provided health or default
+          statuses: change.statuses || [],
+          companion: change.addCompanion ? { ...change.addCompanion, id: `comp_${Date.now()}` } : null, // Can add companion immediately if specified
+        };
+        // Ensure health is applied correctly if healthChange was also provided for the new survivor
+        if (typeof change.healthChange === 'number') {
+          newSurvivor.health = Math.max(0, Math.min(100, newSurvivor.health + change.healthChange));
+        }
+        tempSurvivors.push(newSurvivor);
+        console.log('Added new survivor:', newSurvivor);
+      }
+      return; // Skip applying other changes to this 'new' entry
+    }
+
+    // --- Existing logic for modifying survivors ---
     let targets: Survivor[] = [];
     
     if (change.target === 'player') {
@@ -63,19 +86,8 @@ export function applySurvivorChanges(
       }
     } else if (change.target === 'all') {
       targets = tempSurvivors.filter((s) => s.health > 0);
-    } else if (change.target === 'new') {
-      if (tempSurvivors.length < 5) {
-        const newSurvivor: Survivor = {
-          id: `survivor_${Date.now()}_${Math.random().toString(16).slice(2)}`,
-          name: change.name || 'New Survivor',
-          health: change.health || 80,
-          statuses: change.statuses || [],
-          companion: null,
-        };
-        tempSurvivors.push(newSurvivor);
-      }
-      return;
     } else {
+      // Target specific survivor by ID or Name
       targets = tempSurvivors.filter(
         (s) => s.id === change.target || s.name === change.target
       );

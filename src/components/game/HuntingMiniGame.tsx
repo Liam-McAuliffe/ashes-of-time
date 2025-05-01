@@ -135,22 +135,6 @@ const HuntingMiniGame: React.FC<HuntingMiniGameProps> = ({
         {/* MOVED OUT: Miss Indicator */} 
       </div>
 
-      {/* Text container - MOVED HERE, below the reticle container */} 
-      <div className="text-center">
-        {/* Miss Indicator */} 
-        {missed && (
-            <p className="text-red-500 text-xl font-bold uppercase tracking-widest mb-2">
-                Missed!
-            </p>
-        )}
-        {/* Instruction Text */} 
-        {!resultMessage && ( // Hide instruction text once result is shown
-          <p className="text-stone text-lg font-semibold animate-pulse">
-              Click when the circle is smallest!
-          </p>
-        )}
-      </div>
-
     </div>
   );
 };
