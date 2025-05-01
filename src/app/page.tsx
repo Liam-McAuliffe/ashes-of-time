@@ -83,52 +83,63 @@ export default function GamePage() {
     !gameState.isLoading && !gameState.isNamingCompanion && !gameState.isGameOver && !currentAction;
 
   return (
-    <main className={`min-h-screen ${mainBgClass} text-olive transition-colors duration-500`}>
+    <main className={`min-h-screen ${mainBgClass} text-olive transition-colors duration-500 font-mono`}>
       {!isStarted ? (
         <Prologue onStartGame={handleStartGame} />
       ) : (
-        <div className="container mx-auto px-4 py-8 flex flex-col gap-4 md:gap-6">
-          <ResourceDisplay
-            day={gameState.day}
-            food={gameState.food}
-            water={gameState.water}
-            foodChange={gameState.foodChange}
-            waterChange={gameState.waterChange}
-            survivors={gameState.survivors}
-          />
-          <SurvivorDisplay survivors={gameState.survivors} />
-          <EventDisplay
-            text={gameState.eventText}
-            isLoading={gameState.isLoading}
-            error={gameState.error}
-            lastOutcome={gameState.lastOutcome}
-          />
-          {gameState.isNamingCompanion && gameState.companionToNameInfo ? (
-            <NameCompanionInput
-              companionToNameInfo={gameState.companionToNameInfo}
-            />
-          ) : (
-            <>
-              {gameState.currentChoices && (
-                <ChoiceList
-                  choices={gameState.currentChoices}
-                  onChoiceSelected={handleChoice}
-                  isLoading={gameState.isLoading || currentAction !== null}
-                  currentFood={gameState.food}
-                  currentWater={gameState.water}
-                />
-              )}
-              <PlayerActions
+        <div className="container mx-auto px-4 py-8 flex flex-col md:flex-row gap-6 lg:gap-8">
+          
+          {/* Column 1: Status Info */}
+          <div className="md:w-1/3 lg:w-1/4 flex flex-col gap-4">
+              <ResourceDisplay
+                day={gameState.day}
+                food={gameState.food}
+                water={gameState.water}
+                foodChange={gameState.foodChange}
+                waterChange={gameState.waterChange}
                 survivors={gameState.survivors}
-                onHuntComplete={handleHuntComplete}
-                onGatherComplete={handleGatherComplete}
-                onHuntStart={handleHuntStart}
-                onGatherStart={handleGatherStart}
-                disabled={!canTakeAction}
-                currentAction={currentAction}
               />
-            </>
-          )}
+              <SurvivorDisplay survivors={gameState.survivors} />
+          </div>
+
+          {/* Column 2: Narrative & Actions */}
+          <div className="md:w-2/3 lg:w-3/4 flex flex-col gap-4">
+              <EventDisplay
+                text={gameState.eventText}
+                isLoading={gameState.isLoading}
+                error={gameState.error}
+                lastOutcome={gameState.lastOutcome}
+              />
+              
+              {/* Conditional Rendering for Naming vs. Choices/Actions */}
+              {gameState.isNamingCompanion && gameState.companionToNameInfo ? (
+                <NameCompanionInput
+                  companionToNameInfo={gameState.companionToNameInfo}
+                />
+              ) : (
+                <>
+                  {gameState.currentChoices && (
+                    <ChoiceList
+                      choices={gameState.currentChoices}
+                      onChoiceSelected={handleChoice}
+                      isLoading={gameState.isLoading || currentAction !== null}
+                      currentFood={gameState.food}
+                      currentWater={gameState.water}
+                    />
+                  )}
+                  <PlayerActions
+                    survivors={gameState.survivors}
+                    onHuntComplete={handleHuntComplete}
+                    onGatherComplete={handleGatherComplete}
+                    onHuntStart={handleHuntStart}
+                    onGatherStart={handleGatherStart}
+                    disabled={!canTakeAction}
+                    currentAction={currentAction}
+                  />
+                </>
+              )}
+          </div>
+
         </div>
       )}
     </main>

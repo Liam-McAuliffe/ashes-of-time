@@ -11,6 +11,18 @@ interface PlayerActionsProps {
   currentAction: string | null;
 }
 
+// Common button classes for consistency
+const buttonBaseClasses = 
+  'flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded font-semibold transition-all duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-stone disabled:opacity-60 disabled:cursor-not-allowed shadow-sm hover:shadow-md';
+
+// Updated Hunt button colors (Brownish-Orange)
+const huntButtonClasses = 
+  'bg-amber-700/80 text-stone hover:bg-amber-700 focus:ring-amber-700 border border-amber-800/50';
+
+// Updated Gather button colors (Blue)
+const gatherButtonClasses = 
+  'bg-blue-700/80 text-stone hover:bg-blue-700 focus:ring-blue-700 border border-blue-800/50';
+
 const PlayerActions: React.FC<PlayerActionsProps> = ({
   survivors,
   onHuntComplete,
@@ -20,23 +32,26 @@ const PlayerActions: React.FC<PlayerActionsProps> = ({
   disabled,
   currentAction,
 }) => {
+  const isHunting = currentAction === 'hunting';
+  const isGathering = currentAction === 'gathering';
+
   return (
-    <div className="mt-6 flex flex-col sm:flex-row gap-4">
+    <div className="mt-4 pt-4 border-t border-olive/30 flex flex-col sm:flex-row gap-3 sm:gap-4">
       <button
         onClick={onHuntStart}
-        disabled={disabled || currentAction === 'hunting'}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-rust text-stone rounded disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+        disabled={disabled || isHunting}
+        className={`${buttonBaseClasses} ${huntButtonClasses}`}
       >
         <Crosshair className="w-5 h-5" />
-        <span>Hunt for Food</span>
+        <span>{isHunting ? 'Hunting...' : 'Hunt for Food'}</span>
       </button>
       <button
         onClick={onGatherStart}
-        disabled={disabled || currentAction === 'gathering'}
-        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-rust text-stone rounded disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+        disabled={disabled || isGathering}
+        className={`${buttonBaseClasses} ${gatherButtonClasses}`}
       >
         <Droplets className="w-5 h-5" />
-        <span>Gather Water</span>
+        <span>{isGathering ? 'Gathering...' : 'Gather Water'}</span>
       </button>
     </div>
   );

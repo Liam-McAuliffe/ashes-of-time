@@ -1,224 +1,164 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextResponse } from 'next/server';
+import type { Survivor } from '../../../types/game';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+const apiKey = process.env.GEMINI_API_KEY;
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
 
-function tryParseJson(text) {
-  if (!text) return { description: 'No response received.', choices: null };
-
-  // Check if text is already a valid JSON object (could happen with some models)
-  if (typeof text === 'object' && text !== null) {
-    if (
-      typeof text.description === 'string' &&
-      (!text.choices || Array.isArray(text.choices))
-    ) {
-      return text;
-    }
+function tryParseJson(text: string | null | undefined): any {
+  if (!text) {
+    console.warn('tryParseJson received null/undefined text');
+    return { description: 'No response received.', choices: null };
+  }
+  
+  // Handle potential object input (less likely now, but safe)
+  if (typeof text === 'object') {
+    if (typeof (text as any).description === 'string') return text;
   }
 
+  if (typeof text !== 'string') {
+     console.warn('tryParseJson received non-string text:', typeof text);
+    return { description: 'Invalid response format received.', choices: null };
+  }
+
+  let jsonStringToParse = text;
+  let potentialJson = null;
+
+  // 1. Attempt to strip markdown backticks
   try {
-    let cleanText = text;
-
-    const jsonBlockMatch = cleanText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonBlockMatch?.[1]) {
-      cleanText = jsonBlockMatch[1].trim();
-    }
-
-    const jsonStart = cleanText.indexOf('{');
-    const jsonEnd = cleanText.lastIndexOf('}');
-
-    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-      const jsonString = cleanText.substring(jsonStart, jsonEnd + 1);
-      const parsed = JSON.parse(jsonString);
-
-      if (
-        typeof parsed.description === 'string' &&
-        (!parsed.choices || Array.isArray(parsed.choices))
-      ) {
-        const description = parsed.description;
-        if (
-          description.includes('{') &&
-          description.includes('}') &&
-          (description.includes('"description"') ||
-            description.includes('"choices"'))
-        ) {
-          return {
-            description:
-              'The day brings new challenges. (Error: Event description contained invalid formatting)',
-            choices: parsed.choices || null,
-          };
-        }
-
-        return parsed;
+      const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (jsonBlockMatch?.[1]) {
+          console.log('tryParseJson: Found JSON within backticks.');
+          jsonStringToParse = jsonBlockMatch[1].trim();
+      } else {
+          // If no backticks, maybe the AI just returned raw JSON (or invalid text)
+          // Trim potential whitespace/newlines
+          jsonStringToParse = text.trim();
       }
-
-      console.warn('Parsed JSON has invalid structure:', parsed);
-      return {
-        description: 'Received unclear instructions from headquarters.',
-        choices: null,
-      };
+  } catch (e) {
+      console.error('tryParseJson: Error during regex/stripping:', e);
+      jsonStringToParse = text; // Fallback to original text
+  }
+  
+  // 2. Attempt to parse the processed string
+  try {
+    // Ensure it looks like JSON before trying to parse
+    if (jsonStringToParse.startsWith('{') && jsonStringToParse.endsWith('}')) {
+      potentialJson = JSON.parse(jsonStringToParse);
+      console.log('tryParseJson: Successfully parsed JSON.');
+    } else {
+        console.warn('tryParseJson: Text did not start/end with {} after stripping backticks:', jsonStringToParse);
     }
   } catch (e) {
-    console.error('Failed to parse AI response as JSON:', e);
-
-    if (
-      text.includes('{') &&
-      text.includes('}') &&
-      (text.includes('"description"') || text.includes('"choices"'))
-    ) {
-      return {
-        description:
-          'Radio transmission garbled. Try advancing to the next day.',
-        choices: null,
-      };
-    }
-
-    return { description: text, choices: null };
+    console.error('tryParseJson: JSON.parse failed:', e);
+    console.error('--- String that failed parsing ---\n', jsonStringToParse, '\n--- End String ---');
+    // Parsing failed, potentialJson remains null
   }
 
-  return {
-    description: text.length > 500 ? text.substring(0, 500) + '...' : text,
-    choices: null,
-  };
+  // 3. Validate the parsed structure
+  // Accept 'description', 'scene', or 'event' as the narrative key
+  const narrativeKey = ['description', 'scene', 'event'].find(key => typeof potentialJson?.[key] === 'string');
+
+  if (potentialJson && narrativeKey) {
+       console.log(`tryParseJson: Parsed JSON validated successfully (found key: ${narrativeKey}).`);
+       
+       // Extract the narrative text using the found key
+       const narrativeText = potentialJson[narrativeKey];
+
+       // Check for accidental nested JSON string in the narrative
+       if (
+            narrativeText.includes('{') &&
+            narrativeText.includes('}') &&
+            (narrativeText.includes('\\"description\\"') || narrativeText.includes('\\"choices\\"') || narrativeText.includes('\\"scene\\"') || narrativeText.includes('\\"event\\"')) // Added event check
+        ) {
+            console.warn('tryParseJson: AI narrative contained escaped JSON, providing fallback description.');
+            return {
+                description: 'The day brings new challenges. (Event description formatting error)',
+                choices: potentialJson.choices || null, 
+            };
+        }
+       
+       // Ensure the final returned object always uses 'description' for consistency
+       if (narrativeKey !== 'description') {
+            potentialJson.description = narrativeText; // Assign the text to description
+            delete potentialJson[narrativeKey];       // Delete the original key (scene or event)
+       }
+       return potentialJson; 
+  } else if (potentialJson) {
+      console.warn('tryParseJson: Parsed JSON failed validation (missing/invalid description, scene, or event?):', potentialJson);
+  }
+
+  // 4. Final fallback if all else failed
+  console.warn('tryParseJson: Falling back to uninterpretable message.');
+  const limited = text.length > 300 ? text.slice(0, 297) + '...' : text;
+  return { description: `Received uninterpretable message: ${limited}`, choices: null };
 }
 
 export async function POST(request) {
-  try {
-    const body = await request.json();
-    const { promptContext } = body;
-
-    if (!promptContext) {
-      return NextResponse.json(
-        { error: 'Missing promptContext in request body.' },
-        { status: 400 }
-      );
-    }
-
-    const currentDay = promptContext.day || 1;
-    const currentFood = promptContext.food ?? 'unknown';
-    const currentWater = promptContext.water ?? 'unknown';
-    const gameTheme = promptContext.theme || 'Standard Post-Apocalypse';
-    const previousEventOutcome =
-      promptContext.previousDay ||
-      'First day follow the overall theme. No previous event. Create a story.';
-
-    const currentSurvivors =
-      Array.isArray(promptContext.survivors) &&
-      promptContext.survivors.length > 0
-        ? promptContext.survivors
-        : [
-            {
-              id: 'player',
-              name: 'You',
-              health: 100,
-              statuses: [],
-              companion: null,
-            },
-          ];
-
-    const survivorDetails = currentSurvivors
-      .map((s) => {
-        let detail = `- ${s.name} (Health: ${s.health}`;
-        if (s.statuses.length > 0) {
-          detail += `, Statuses: [${s.statuses.join(', ')}]`;
-        }
-
-        if (s.companion) {
-          detail += `, Companion: ${s.companion.name} (${s.companion.type})`;
-        }
-        detail += ')';
-        return detail;
-      })
-      .join('\n');
-    const survivorCount = currentSurvivors.length;
-    const survivorNames = currentSurvivors.map((s) => s.name);
-
-    const prompt = `
-    You are generating events for a post-apocalyptic survival game.
-    The goal is to create engaging, challenging, and contextually relevant scenarios.
-
-    **GAME THEME: ${gameTheme}**
-    * All events and choices should reflect this overarching theme.
-    * For example, if the theme is "Nuclear Winter", focus on extreme cold, radiation, and appropriate challenges.
-    * If the theme is "Mutated Beasts", emphasize encounters with strange creatures.
-    * Maintain consistency with this theme throughout all events and choices.
-
-    **Current Game State:**
-    * **Day:** ${currentDay}
-    * **Food:** ${currentFood}
-    * **Water:** ${currentWater}
-    * **Survivors (${survivorCount}):**
-        ${survivorDetails}
-    * **Outcome of Previous Event:** ${previousEventOutcome}
-
-    **Task:**
-    1.  Generate a **detailed narrative event** (3-5 sentences) that fits within the **${gameTheme}** setting.
-        * The event should feel like a natural progression or consequence of the previous day's outcome and the current situation.
-        * COMPANIONS ARE THE PETS AND HELPERS OF THE SURVIVORS. THEY ARE NOT HUMAN!
-        * **Crucially, this event MUST be distinct** from previous events and offer fresh challenges or opportunities.
-        * Consider the current day number and how it might affect the narrative within the context of the ${gameTheme} theme.
-
-    2.  Provide **2-3 distinct choices** related to the event.
-        * Choices must be logical actions survivors could take in response to the event description.
-        * Choices should offer meaningful trade-offs (e.g., risk vs. reward, resource cost vs. potential gain, short-term benefit vs. long-term consequence).
-        * Outcomes and effects should be plausible consequences of the choice made.
-        * **Survivor Limit Rule:** If the current survivor count is 5 or more (currently ${survivorCount}), **DO NOT** generate any choices that have an effect of adding a new survivor ('target': 'new').
-        * **New Survivor/Companion Guidance:**
-            * Occasionally (around a 5-10% chance per day, perhaps slightly increasing as days pass or if the survivor count is low), consider generating a choice that *could* lead to encountering a potential new survivor (if count < 5) or a potential companion (if the targeted survivor doesn't already have one).
-            * Do *not* force these encounters; they should arise naturally from the event narrative (e.g., investigating a noise, answering a distress call, finding a stray).
-            * If adding a new survivor, try to balance genders and use varied, somewhat common names.
-            * If adding a companion, suggest a type (e.g., dog, cat, robot part, or many more) and a generic initial name (e.g., "Stray Dog", "Feral Cat", "Damaged Drone").
-            * MUST ENCOUNTER A COMPANION OR A SURVIVOR BY DAY 5!
-            * EACH DAY REVIEW EACH STATUS AND DETERMINE IF THEY ARE STILL VALID. IF NOT, REMOVE THEM!
-            * REMEBER TO ADD OTHER PEOPLE TO THE PARTY. THEY ARE NOT ALONE! THIS MAKE IT MORE ENGAGIN FOR THE USER!
-
-    3.  **Output Format:**
-        Respond ONLY with a single, valid JSON object matching this exact structure. Do NOT include any text, explanations, or markdown formatting before or after the JSON block.
-
-        \`\`\`json
-        {
-        "description": "...",
-        "choices": [
-            {
-            "id": "choice_1", // Use unique IDs like choice_1, choice_2, etc.
-            "text": "...",    // Clear description of the action
-            "cost": { "food": 0, "water": 0 }, // Resource cost (can be 0)
-            "outcome": "...", // Narrative result of the choice
-            "effects": {
-                "food": 0,       // Net change in food
-                "water": 0,      // Net change in water
-                "survivorChanges": [
-                // Array of changes. Target 'player', 'random', 'all', or specific names: ${survivorNames.join(
-                  ', '
-                )}
-                // Examples:
-                // { "target": "player", "healthChange": -10 },
-                // { "target": "random", "addStatus": "injured" }, // Common statuses: injured, sick, fatigued, bleeding, hopeful, scared
-                // { "target": "${survivorNames[0]}", "removeStatus": "sick" },
-                // { "target": "all", "healthChange": 5, "removeStatus": "fatigued" },
-                // { "target": "new", "name": "Maya", "health": 75, "statuses": [] }, // ONLY IF survivor count < 5, make this rare/situational
-                // { "target": "player", "addCompanion": { "type": "cat", "name": "Feral Cat" } }, // ONLY IF target has no companion, make rare/situational
-                ]
-            }
-            }
-        ]
-        }
-        \`\`\`
-    `;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: prompt,
-    });
-    const text = response.text;
-    const parsedResponse = tryParseJson(text);
-
-    return NextResponse.json(parsedResponse);
-  } catch (error) {
-    console.error('Error in Gemini API route:', error);
-    return NextResponse.json(
-      { error: 'Failed to generate event.' },
-      { status: 500 }
-    );
+  if (!ai) {
+    return NextResponse.json({ error: 'Server configuration error: Missing API Key.' }, { status: 500 });
   }
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid request format.' }, { status: 400 });
+  }
+  const { promptContext } = body;
+  if (!promptContext) {
+    return NextResponse.json({ error: 'Missing promptContext in request body.' }, { status: 400 });
+  }
+
+  const currentDay = promptContext.day || 1;
+  const currentFood = promptContext.food ?? 'unknown';
+  const currentWater = promptContext.water ?? 'unknown';
+  const gameTheme = promptContext.theme || 'Standard Post-Apocalypse';
+  const previousEventOutcome =
+    promptContext.previousDay ||
+    (currentDay === 1
+      ? 'First day. Establish the initial scene based on the theme.'
+      : 'No previous outcome provided.');
+
+  const survivors =
+    Array.isArray(promptContext.survivors) && promptContext.survivors.length > 0
+      ? promptContext.survivors
+      : [{ id: 'player', name: 'You', health: 100, statuses: [], companion: null }];
+  const survivorCount = survivors.length;
+  const survivorNames = survivors.map((s) => s.name);
+
+  const survivorDetails = survivors
+    .map((s) => {
+      let d = `- ${s.name} (Health: ${s.health}`;
+      if (s.statuses.length) d += `, Statuses: [${s.statuses.join(', ')}]`;
+      if (s.companion) d += `, Companion: ${s.companion.name} (${s.companion.type})`;
+      return d + ')';
+    })
+    .join('\n    ');
+
+  let prompt = `\nYou are generating events for a text-based post-apocalyptic survival game.\nThe goal is to create **unique, varied, and contextually continuous** scenarios in valid JSON format.\nAvoid clichés and repetition unless absolutely necessary.\n\n**GAME THEME: ${gameTheme}**\n* All events and choices MUST strictly adhere to this theme.\n* Maintain thematic consistency.\n\n**Current Game State:**\n* **Day:** ${currentDay}\n* **Food:** ${currentFood}\n* **Water:** ${currentWater}\n* **Survivors (${survivorCount}):**\n    ${survivorDetails}\n`;
+
+  if (currentDay > 1) {
+    prompt += `* **Outcome of Previous Choice:** ${previousEventOutcome} \n`; 
+  }
+
+  prompt += `\n**Task:**\n`;
+
+  if (currentDay === 1) {
+    prompt += `1.  Generate an **initial opening scene** (3-5 sentences) for Day 1 based on the **${gameTheme}** theme. Set the stage effectively. DO NOT use phrases implying continuation (like \"second day\").\n`;
+  } else {
+    prompt += `1.  Generate a **unique and detailed narrative event** (3-5 sentences) for Day ${currentDay} fitting the **${gameTheme}** theme. \n    * **Crucially, this event MUST be a direct and logical consequence or follow-up to the specific 'Outcome of Previous Choice' provided above.** Do not ignore the previous outcome.\n    * **AVOID REPETITION:** Do NOT reuse common phrases (like \"biting wind\", \"skeletal remains\"), items (like \"metal container\"), or generic situations (like simple scavenging) from recent days unless it makes strong narrative sense. Introduce diverse locations, challenges, weather, and encounters.\n    * Manage status effects logically (replace lesser severity with greater, no contradictions). Reflect changes in effects.\n`;
+  }
+
+  prompt += `\n2.  Provide **2-3 distinct and meaningful choices** related to the event.\n    * Choices must be logical actions with clear trade-offs (risk/reward, cost/gain, moral choices).\n    * **Survivor Limit Rule:** No 'new' survivor choices if count >= 5.\n    * **New Survivor/Companion Guidance:** RARE encounters (5-10% chance, increasing slightly), MUST arise naturally from narrative. NO companions on Day 1. Target specific survivors without companions. Ensure encounter by Day 5.\n    * **DESCRIPTIVE OUTCOMES:** For each choice, the \"outcome\" field MUST contain a **detailed description (1-2 sentences)** summarizing exactly *what happened* as a result of taking that action. This outcome text is CRITICAL context for the next day's event. Example: Instead of \"Searched the area\", use \"Searching the abandoned shop revealed a rusty first-aid kit but attracted unwanted attention from clicking sounds nearby.\"\n\n3.  **Output Format:**\n    Respond ONLY with a single, valid JSON object. No extra text or markdown.\n\n    \\\`\\\`\\\`json\n    {\n      \"description\": \"...\", // Narrative event / Day 1 scene
+      \"choices\": [\n        {\n          \"id\": \"choice_1\",\n          \"text\": \"...\",\n          \"cost\": { \"food\": 0, \"water\": 0 },\n          \"outcome\": \"...DETAILED outcome description (1-2 sentences)...\", \n          \"effects\": { \"food\": 0, \"water\": 0, \"survivorChanges\": [ /* ... */ ] }\n        }\n        // ... (more choices) ...
+      ]\n    }\n    \\\`\\\`\\\`\n\n---\nGenerate the JSON event data now, focusing on **uniqueness, continuity, and detailed outcomes**:\n`;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-1.5-flash',
+    contents: [{ role: 'user', parts: [{ text: prompt }] }],
+  });
+
+  const text = response?.candidates?.[0]?.content?.parts?.[0]?.text;
+  const parsed = tryParseJson(text);
+  return NextResponse.json(parsed);
 }

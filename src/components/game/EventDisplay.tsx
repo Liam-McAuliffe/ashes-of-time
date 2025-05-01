@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface EventDisplayProps {
   text: string;
@@ -14,21 +15,28 @@ const EventDisplay: React.FC<EventDisplayProps> = ({
   lastOutcome,
 }) => {
   return (
-    <div className="mt-6 space-y-4">
+    <div className="space-y-4 bg-stone/10 border border-olive/30 p-4 rounded-lg">
       {lastOutcome && (
-        <div className="p-4 border border-olive/30 rounded bg-stone/50">
-          <p className="text-sm text-olive/70 italic">{lastOutcome}</p>
+        <div className="pb-3 border-b border-olive/20">
+          <p className="text-xs uppercase text-olive font-semibold mb-1">Previously:</p>
+          <p className="text-sm text-olive/90 italic">{lastOutcome}</p>
         </div>
       )}
-      <div className="p-4 border border-olive/30 rounded bg-stone/50">
+      <div className="min-h-[80px]">
         {isLoading ? (
-          <p className="text-olive animate-pulse">Loading...</p>
-        ) : error ? (
-          <p className="text-rust">{error}</p>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-olive">{text}</p>
+          <div className="flex items-center justify-center h-full text-olive">
+            <Loader2 className="animate-spin mr-2" size={18} />
+            <span>Sleeping through the night...</span>
           </div>
+        ) : error ? (
+          <div className="flex items-center text-red-600">
+            <AlertTriangle className="mr-2" size={18} />
+            <span>{error}</span>
+          </div>
+        ) : (
+          <p className="text-charcoal text-base leading-relaxed font-medium">
+            {text}
+          </p>
         )}
       </div>
     </div>
