@@ -1,21 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { GameActionTypes } from '../../actions/gameActions';
+import { useAppDispatch } from '../../hooks';
+import { finishNamingCompanion } from '../../store/slices/gameSlice';
 import { PawPrint } from 'lucide-react';
 
-const NameCompanionInput = ({ companionInfo, dispatch }) => {
-  const [companionName, setCompanionName] = useState(
-    companionInfo?.companion?.name || ''
-  );
+interface NameCompanionInputProps {
+  companionToNameInfo: {
+    survivorId: string;
+    companion: {
+      type: string;
+      name: string;
+    };
+  } | null;
+}
+
+const NameCompanionInput: React.FC<NameCompanionInputProps> = ({ companionToNameInfo }) => {
+  const dispatch = useAppDispatch();
+  const [companionName, setCompanionName] = useState(companionToNameInfo?.companion?.name || '');
 
   useEffect(() => {
-    setCompanionName(companionInfo?.companion?.name || '');
-  }, [companionInfo]);
+    setCompanionName(companionToNameInfo?.companion?.name || '');
+  }, [companionToNameInfo]);
 
-  const handleNameChange = (event) => {
+  const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setCompanionName(event.target.value);
   };
 
-  const handleConfirmName = (event) => {
+  const handleConfirmName = (event: React.FormEvent) => {
     event.preventDefault();
     const finalName = companionName.trim();
 
@@ -24,20 +34,19 @@ const NameCompanionInput = ({ companionInfo, dispatch }) => {
       return;
     }
 
-    dispatch({
-      type: GameActionTypes.FINISH_NAMING_COMPANION,
-      payload: {
-        survivorId: companionInfo.survivorId,
-        newName: finalName,
-      },
-    });
+    if (!companionToNameInfo) return;
+
+    dispatch(finishNamingCompanion({
+      survivorId: companionToNameInfo.survivorId,
+      newName: finalName
+    }));
   };
 
-  if (!companionInfo || !companionInfo.companion) {
+  if (!companionToNameInfo || !companionToNameInfo.companion) {
     return <p className="text-olive">Error displaying companion info...</p>;
   }
 
-  const { companion } = companionInfo;
+  const { companion } = companionToNameInfo;
 
   return (
     <div className="w-full flex flex-col items-center justify-center space-y-4 p-4 border border-olive/50 rounded bg-stone text-charcoal font-mono">
@@ -74,4 +83,4 @@ const NameCompanionInput = ({ companionInfo, dispatch }) => {
   );
 };
 
-export default NameCompanionInput;
+export default NameCompanionInput; 

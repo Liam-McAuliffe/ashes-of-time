@@ -1,21 +1,31 @@
-import { Droplet, Ham, Sun } from 'lucide-react';
 import React from 'react';
+import { Droplet, Ham, Sun } from 'lucide-react';
+import { Survivor } from '../../types/game';
 
-function ResourceDisplay({
+interface ResourceDisplayProps {
+  day: number;
+  food: number;
+  water: number;
+  foodChange: number;
+  waterChange: number;
+  survivors: Survivor[];
+}
+
+const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   day,
   food,
   water,
   foodChange,
   waterChange,
   survivors,
-}) {
-  const getResourceClass = (value) => {
+}) => {
+  const getResourceClass = (value: number) => {
     if (value <= 3) return 'text-rust font-semibold animate-pulse';
     if (value <= 6) return 'text-amber-600 font-semibold';
     return 'text-charcoal';
   };
 
-  const formatChange = (change) => {
+  const formatChange = (change: number) => {
     if (change > 0)
       return (
         <span className="text-emerald-600 font-semibold">(+{change})</span>
@@ -25,8 +35,7 @@ function ResourceDisplay({
     else return null;
   };
 
-  const livingSurvivorCount =
-    survivors?.filter((s) => s.health > 0).length || 0;
+  const livingSurvivorCount = survivors?.filter((s) => s.health > 0).length || 0;
   const changeTooltip =
     'Net change from previous day (includes choice cost/effect and daily use)';
 
@@ -65,6 +74,6 @@ function ResourceDisplay({
       </div>
     </div>
   );
-}
+};
 
-export default ResourceDisplay;
+export default ResourceDisplay; 

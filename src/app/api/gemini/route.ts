@@ -198,95 +198,26 @@ export async function POST(request) {
                 // { "target": "all", "healthChange": 5, "removeStatus": "fatigued" },
                 // { "target": "new", "name": "Maya", "health": 75, "statuses": [] }, // ONLY IF survivor count < 5, make this rare/situational
                 // { "target": "player", "addCompanion": { "type": "cat", "name": "Feral Cat" } }, // ONLY IF target has no companion, make rare/situational
-                // { "target": "${
-                  survivorNames.length > 1 ? survivorNames[1] : 'player'
-                }", "removeCompanion": true } // Only if target HAS a companion
                 ]
             }
-            },
-            // ... (Include 1 or 2 more distinct choices following the same structure)
+            }
         ]
         }
         \`\`\`
-
-    ---
-    Generate the JSON event data now based on the current game state and rules, focusing on creating a unique and engaging scenario:
     `;
 
-    console.log(
-      `Sending prompt to Gemini for Day ${currentDay}. Survivor Count: ${survivorCount}`
-    );
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash',
+      model: "gemini-2.0-flash",
       contents: prompt,
     });
     const text = response.text;
-    console.log('Raw AI Response:', text);
+    const parsedResponse = tryParseJson(text);
 
-    const eventData = tryParseJson(text);
-
-    if (!eventData || typeof eventData.description !== 'string') {
-      console.error(
-        'Failed to get valid structured data from AI after parsing:',
-        eventData
-      );
-      return NextResponse.json(
-        {
-          description:
-            eventData?.description ||
-            text ||
-            'The radio crackles with static. Nothing seems to be happening.',
-          choices: [
-            {
-              id: 'wait',
-              text: 'Wait...',
-              cost: { food: 0, water: 0 },
-              outcome: 'You wait cautiously.',
-              effects: { food: 0, water: 0, survivorChanges: [] },
-            },
-          ],
-        },
-        { status: 200 }
-      );
-    }
-
-    if (eventData.choices) {
-      eventData.choices.forEach((choice) => {
-        if (choice.effects?.survivorChanges) {
-          choice.effects.survivorChanges =
-            choice.effects.survivorChanges.filter((change) => {
-              if (change.target === 'new' && survivorCount >= 5) {
-                console.warn(
-                  `AI generated a 'new' survivor choice despite count being ${survivorCount}. Filtering it out.`
-                );
-                return false;
-              }
-
-              return true;
-            });
-        }
-      });
-    }
-
-    return NextResponse.json(eventData);
+    return NextResponse.json(parsedResponse);
   } catch (error) {
-    console.error('Error in /api/gemini route:', error);
-    if (error.message?.includes('API key not valid')) {
-      return NextResponse.json(
-        {
-          error: 'Invalid Gemini API Key. Check server environment variables.',
-        },
-        { status: 401 }
-      );
-    }
-    if (error instanceof SyntaxError) {
-      return NextResponse.json(
-        { error: 'Invalid JSON in request body.' },
-        { status: 400 }
-      );
-    }
+    console.error('Error in Gemini API route:', error);
     return NextResponse.json(
-      { error: 'Failed to generate event due to an internal server error.' },
+      { error: 'Failed to generate event.' },
       { status: 500 }
     );
   }

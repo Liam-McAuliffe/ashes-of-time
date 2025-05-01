@@ -1,10 +1,13 @@
-import './globals.css';
-import { GameProvider } from '../context/GameContext';
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import './globals.css';
+import { Providers } from './providers';
+
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Ashes of Time',
-  description: 'Post-apocalyptic single-player story game using Gemini AI',
+  description: 'A survival game in a post-apocalyptic world',
   keywords: 'game, post-apocalyptic, AI, survival',
   authors: [{ name: 'Liam McAuliffe' }],
 };
@@ -16,8 +19,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <GameProvider>{children}</GameProvider>
+      <body className={inter.className}>
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

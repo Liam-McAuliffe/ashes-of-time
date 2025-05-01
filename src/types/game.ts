@@ -13,8 +13,20 @@ export interface Companion {
   bonuses?: {
     hunting?: number;
     gathering?: number;
-    defense?: number;
+    healing?: number;
   };
+}
+
+export interface SurvivorChange {
+  target: 'player' | 'random' | 'all' | 'new' | string;
+  healthChange?: number;
+  addStatus?: string;
+  removeStatus?: string;
+  name?: string;
+  health?: number;
+  statuses?: string[];
+  addCompanion?: Companion;
+  removeCompanion?: boolean;
 }
 
 export interface GameChoice {
@@ -30,13 +42,6 @@ export interface GameChoice {
     water: number;
     survivorChanges?: SurvivorChange[];
   };
-}
-
-export interface SurvivorChange {
-  id: string;
-  health?: number;
-  statuses?: { add?: string[]; remove?: string[] };
-  companion?: Companion;
 }
 
 export interface GameState {
@@ -62,21 +67,15 @@ export interface GameState {
 }
 
 export interface HuntResult {
-  success: boolean;
+  hunterId: string;
   foodGained: number;
-  waterGained?: number;
-  survivorId: string;
-  healthLost?: number;
-  statusGained?: string;
+  healthChange: number;
   outcomeText: string;
 }
 
 export interface GatherResult {
-  success: boolean;
+  gathererId: string;
   waterGained: number;
-  foodGained?: number;
-  survivorId: string;
-  healthLost?: number;
-  statusGained?: string;
+  healthChange: number;
   outcomeText: string;
 } 

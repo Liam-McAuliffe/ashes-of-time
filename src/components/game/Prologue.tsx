@@ -1,14 +1,18 @@
 import React from 'react';
 import { Droplet, HeartPulse, Users, Target } from 'lucide-react';
 
-const Prologue = ({ setIsStarted }) => {
+interface PrologueProps {
+  onStartGame: () => void;
+}
+
+const Prologue: React.FC<PrologueProps> = ({ onStartGame }) => {
   return (
-    <div className="flex flex-col items-center justify-center text-center w-full max-w-2xl p-4 md:p-8 text-stone font-mono space-y-6 animate-fade-in">
+    <div className="min-h-screen flex flex-col items-center justify-center text-center w-full max-w-2xl mx-auto p-4 md:p-8 text-stone font-mono space-y-6 animate-fade-in">
       <h1 className="text-4xl md:text-5xl font-bold text-rust mb-4">
         Ashes of Time
       </h1>
 
-      <div className="space-y-4 text-base md:text-lg leading-relaxed text-stone/90 text-left bg-charcoal/30 p-6 rounded-lg border border-olive">
+      <div className="w-full space-y-4 text-base md:text-lg leading-relaxed text-stone/90 text-left bg-charcoal/30 p-6 rounded-lg border border-olive">
         <h2 className="text-2xl font-semibold text-rust mb-3 text-center">
           How to Survive
         </h2>
@@ -38,7 +42,7 @@ const Prologue = ({ setIsStarted }) => {
           </span>
         </p>
         <p className="flex items-start gap-2">
-          <span className="text-2xl text-olive flex-shrink-0 mt-0 leading-none">
+          <span className="text-2xl text-olive flex-shrink-0 mt-0 leading-none w-[20px] text-center">
             ?
           </span>
           <span>
@@ -63,7 +67,7 @@ const Prologue = ({ setIsStarted }) => {
       </div>
 
       <button
-        onClick={() => setIsStarted(true)}
+        onClick={onStartGame}
         className="mt-8 px-10 py-3 bg-rust text-stone text-lg font-semibold rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-rust/50 focus:ring-offset-2 focus:ring-offset-charcoal transition-opacity duration-150 ease-in-out shadow-lg hover:shadow-md"
       >
         Begin Survival
@@ -72,4 +76,4 @@ const Prologue = ({ setIsStarted }) => {
   );
 };
 
-export default Prologue;
+export default Prologue; 

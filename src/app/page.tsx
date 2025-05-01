@@ -1,7 +1,16 @@
 'use client';
 
 import { useState } from 'react';
-import { useGame } from '../context/GameContext';
+import { useAppSelector, useAppDispatch, useEventFetcher } from '../hooks';
+import {
+  applyChoice,
+  resolveHunting,
+  resolveGatherWater,
+  setChoiceError,
+  clearError,
+  finishNamingCompanion,
+  resetGame,
+} from '../store/slices/gameSlice';
 import ResourceDisplay from '../components/game/ResourceDisplay';
 import EventDisplay from '../components/game/EventDisplay';
 import ChoiceList from '../components/game/ChoiceList';
@@ -10,32 +19,37 @@ import SurvivorDisplay from '../components/game/SurvivorDisplay';
 import Prologue from '../components/game/Prologue';
 import NameCompanionInput from '../components/game/NameCompanionInput';
 import PlayerActions from '../components/game/PlayerActions';
+import type { GameChoice, HuntResult, GatherResult } from '../types/game';
 
 export default function GamePage() {
-  const {
-    day,
-    food,
-    water,
-    foodChange,
-    waterChange,
-    survivors,
-    eventText,
-    isLoading,
-    error,
-    isGameOver,
-    gameOverMessage,
-    currentChoices,
-    lastOutcome,
-    handleChoice,
-    isNamingCompanion,
-    companionToNameInfo,
-    dispatch,
-    handleHuntComplete,
-    handleGatherComplete,
-  } = useGame();
+  const dispatch = useAppDispatch();
+  
+  useEventFetcher();
 
+  const gameState = useAppSelector((state) => state.game);
+  
   const [isStarted, setIsStarted] = useState(false);
   const [currentAction, setCurrentAction] = useState<string | null>(null);
+
+  const handleChoice = (choice: GameChoice) => {
+    if (gameState.isGameOver || gameState.isLoading) return;
+
+    dispatch(clearError());
+
+    const costFood = choice.cost?.food || 0;
+    const costWater = choice.cost?.water || 0;
+
+    if (gameState.food < costFood || gameState.water < costWater) {
+      dispatch(
+        setChoiceError({
+          error: `Not enough resources! Needs ${costFood} food, ${costWater} water.`,
+        })
+      );
+      return;
+    }
+
+    dispatch(applyChoice({ choice }));
+  };
 
   const handleHuntStart = () => {
     setCurrentAction('hunting');
@@ -45,84 +59,75 @@ export default function GamePage() {
     setCurrentAction('gathering');
   };
 
-  const handleActionComplete = (results: any) => {
+  const handleHuntComplete = (results: HuntResult) => {
     setCurrentAction(null);
-    if (currentAction === 'hunting') {
-      handleHuntComplete(results);
-    } else if (currentAction === 'gathering') {
-      handleGatherComplete(results);
-    }
+    dispatch(resolveHunting(results));
   };
 
-  if (isGameOver) {
-    return <GameOverScreen message={gameOverMessage} day={day} />;
+  const handleGatherComplete = (results: GatherResult) => {
+    setCurrentAction(null);
+    dispatch(resolveGatherWater(results));
+  };
+
+  const handleStartGame = () => {
+    setIsStarted(true);
+    dispatch(resetGame());
+  };
+
+  if (gameState.isGameOver) {
+    return <GameOverScreen message={gameState.gameOverMessage} day={gameState.day} />;
   }
 
   const mainBgClass = isStarted ? 'bg-stone' : 'bg-charcoal';
   const canTakeAction =
-    !isLoading && !isNamingCompanion && !isGameOver && !currentAction;
+    !gameState.isLoading && !gameState.isNamingCompanion && !gameState.isGameOver && !currentAction;
 
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center p-6 md:p-12 lg:p-24 ${mainBgClass} transition-colors duration-500 ease-in-out`}
-    >
+    <main className={`min-h-screen ${mainBgClass} text-olive transition-colors duration-500`}>
       {!isStarted ? (
-        <Prologue setIsStarted={setIsStarted} />
+        <Prologue onStartGame={handleStartGame} />
       ) : (
-        <div className="z-10 w-full max-w-3xl items-center justify-between font-mono text-sm flex flex-col space-y-6">
+        <div className="container mx-auto px-4 py-8 flex flex-col gap-4 md:gap-6">
           <ResourceDisplay
-            day={day}
-            food={food}
-            water={water}
-            foodChange={foodChange}
-            waterChange={waterChange}
-            survivors={survivors}
+            day={gameState.day}
+            food={gameState.food}
+            water={gameState.water}
+            foodChange={gameState.foodChange}
+            waterChange={gameState.waterChange}
+            survivors={gameState.survivors}
           />
-          <SurvivorDisplay survivors={survivors} />
-
-          {isNamingCompanion ? (
+          <SurvivorDisplay survivors={gameState.survivors} />
+          <EventDisplay
+            text={gameState.eventText}
+            isLoading={gameState.isLoading}
+            error={gameState.error}
+            lastOutcome={gameState.lastOutcome}
+          />
+          {gameState.isNamingCompanion && gameState.companionToNameInfo ? (
             <NameCompanionInput
-              companionInfo={companionToNameInfo}
-              dispatch={dispatch}
+              companionToNameInfo={gameState.companionToNameInfo}
             />
           ) : (
-            <EventDisplay
-              lastOutcome={lastOutcome}
-              eventText={eventText}
-              isLoading={isLoading}
-              currentChoices={currentChoices}
-            />
-          )}
-
-          {!isNamingCompanion && (
             <>
+              {gameState.currentChoices && (
+                <ChoiceList
+                  choices={gameState.currentChoices}
+                  onChoiceSelected={handleChoice}
+                  isLoading={gameState.isLoading || currentAction !== null}
+                  currentFood={gameState.food}
+                  currentWater={gameState.water}
+                />
+              )}
               <PlayerActions
-                survivors={survivors}
-                onHuntComplete={handleActionComplete}
-                onGatherComplete={handleActionComplete}
+                survivors={gameState.survivors}
+                onHuntComplete={handleHuntComplete}
+                onGatherComplete={handleGatherComplete}
                 onHuntStart={handleHuntStart}
                 onGatherStart={handleGatherStart}
                 disabled={!canTakeAction}
                 currentAction={currentAction}
               />
-
-              {!currentAction && (
-                <ChoiceList
-                  choices={currentChoices}
-                  onChoiceSelected={handleChoice}
-                  isLoading={!canTakeAction}
-                  currentFood={food}
-                  currentWater={water}
-                />
-              )}
             </>
-          )}
-
-          {error && !isNamingCompanion && (
-            <div className="text-red-500 mt-2 font-semibold text-center w-full bg-red-100 p-2 rounded border border-red-300" 
-                 role="alert" aria-live="assertive">
-              Error: {error}
-            </div>
           )}
         </div>
       )}
