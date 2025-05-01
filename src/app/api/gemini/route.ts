@@ -163,7 +163,7 @@ export async function POST(request) {
       ]\n    }\n    \\\`\\\`\\\`\n\n---\nGenerate the JSON event data now, focusing on **uniqueness, continuity (using previous outcome AND recent history), and detailed outcomes**:\n`;
 
   const response = await ai.models.generateContent({
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.0-flash',
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
   });
 

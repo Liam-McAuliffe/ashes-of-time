@@ -1,5 +1,5 @@
 import React from 'react';
-import { Droplet, HeartPulse, Users, Target } from 'lucide-react';
+import { Droplet, HeartPulse, Users, Target, BookOpen } from 'lucide-react';
 
 interface PrologueProps {
   onStartGame: () => void;
@@ -7,68 +7,58 @@ interface PrologueProps {
 
 const Prologue: React.FC<PrologueProps> = ({ onStartGame }) => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center w-full max-w-2xl mx-auto p-4 md:p-8 text-stone font-mono space-y-6 animate-fade-in">
-      <h1 className="text-4xl md:text-5xl font-bold text-rust mb-4">
-        Ashes of Time
-      </h1>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-charcoal p-4 md:p-8 text-stone font-mono space-y-8 animate-fade-in">
+      <div className="flex items-center gap-3 mb-4">
+        <h1 className="text-5xl md:text-6xl font-bold text-rust tracking-wider">
+          Ashes of Time
+        </h1>
+      </div>
 
-      <div className="w-full space-y-4 text-base md:text-lg leading-relaxed text-stone/90 text-left bg-charcoal/30 p-6 rounded-lg border border-olive">
-        <h2 className="text-2xl font-semibold text-rust mb-3 text-center">
+      <div className="w-full max-w-2xl space-y-4 text-base md:text-lg leading-relaxed text-stone/90 text-left bg-black/20 p-6 rounded-lg border border-olive/50 shadow-lg">
+        <h2 className="text-2xl font-semibold text-rust mb-4 text-center">
           How to Survive
         </h2>
-        <p className="flex items-start gap-2">
+        <p className="flex items-start gap-3">
           <Users size={20} className="text-olive flex-shrink-0 mt-1" />
           <span>
             Welcome to the apocalypse. Your goal is simple:{' '}
-            <strong>survive</strong> as many days as possible. You'll need to
-            manage your dwindling resources and make tough decisions.
+            <strong className="text-stone">survive</strong> as many days as possible. Manage resources, make tough decisions.
           </span>
         </p>
-        <p className="flex items-start gap-2">
-          <Droplet size={20} className="text-cyan-500 flex-shrink-0 mt-1" />
+        <p className="flex items-start gap-3">
+          <Droplet size={20} className="text-cyan-400 flex-shrink-0 mt-1" />
           <span>
-            Keep an eye on your <strong>Food</strong> and <strong>Water</strong>{' '}
-            levels. Each survivor consumes 1 Food and 1 Water per day. Running
-            out of either means game over!
+            Watch your <strong className="text-stone">Food</strong> and <strong className="text-stone">Water</strong>. Each survivor uses 1 of each daily. Running out means game over!
           </span>
         </p>
-        <p className="flex items-start gap-2">
+        <p className="flex items-start gap-3">
           <HeartPulse size={20} className="text-red-500 flex-shrink-0 mt-1" />
           <span>
-            Monitor your party's <strong>Health</strong> and{' '}
-            <strong>Statuses</strong> (like sick or injured). Low health or
-            negative statuses can be dangerous. If your health reaches zero,
-            it's game over.
+            Monitor <strong className="text-stone">Health</strong> & <strong className="text-stone">Statuses</strong> (sick, injured). Low health or bad statuses are dangerous.
           </span>
         </p>
-        <p className="flex items-start gap-2">
+        <p className="flex items-start gap-3">
           <span className="text-2xl text-olive flex-shrink-0 mt-0 leading-none w-[20px] text-center">
             ?
           </span>
           <span>
-            Each day presents a new <strong>Situation</strong>. Read the event
-            text carefully and choose one of the available{' '}
-            <strong>Actions</strong>. Your choices will affect your resources,
-            survivor health, and potentially lead to new encounters or dangers.
+            Each day brings a new <strong className="text-stone">Situation</strong>. Read carefully, choose your <strong className="text-stone">Action</strong>. Choices have consequences.
           </span>
         </p>
-        <p className="flex items-start gap-2">
-          <Target size={20} className="text-emerald-500 flex-shrink-0 mt-1" />
+        <p className="flex items-start gap-3">
+          <Target size={20} className="text-emerald-400 flex-shrink-0 mt-1" />
           <span>
-            Need food? You can choose to <strong>Go Hunting</strong>. Select a
-            survivor to send out, but be prepared for the risks! Success depends
-            on a quick reaction in a mini-game. Companions might help improve
-            your haul.
+            Need food? <strong className="text-stone">Go Hunting</strong> (mini-game). Select a survivor, but beware the risks! Companions might help.
           </span>
         </p>
-        <p className="text-center italic text-olive mt-4">
+        <p className="text-center italic text-olive/80 mt-5">
           Every decision matters. Good luck.
         </p>
       </div>
 
       <button
         onClick={onStartGame}
-        className="mt-8 px-10 py-3 bg-rust text-stone text-lg font-semibold rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-rust/50 focus:ring-offset-2 focus:ring-offset-charcoal transition-opacity duration-150 ease-in-out shadow-lg hover:shadow-md"
+        className="mt-6 px-12 py-3 bg-rust text-charcoal text-xl font-bold rounded-md hover:bg-rust/90 focus:outline-none focus:ring-2 focus:ring-rust/50 focus:ring-offset-2 focus:ring-offset-charcoal transition-all duration-150 ease-in-out shadow-xl hover:shadow-lg transform hover:scale-105"
       >
         Begin Survival
       </button>

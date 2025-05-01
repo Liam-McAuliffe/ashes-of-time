@@ -1,10 +1,13 @@
-import { Survivor, HuntResult, GatherResult } from '../../types/game';
+import { Survivor, GatherResult, HuntResult } from '../../types/game';
 import { Crosshair, Droplets } from 'lucide-react';
+import { useAppDispatch } from '../../hooks';
+import HuntingMiniGame from './HuntingMiniGame';
+import GatherWaterMiniGame from './GatherWaterMiniGame';
 
 interface PlayerActionsProps {
   survivors: Survivor[];
-  onHuntComplete: (result: HuntResult) => void;
   onGatherComplete: (result: GatherResult) => void;
+  onHuntComplete: (result: HuntResult) => void;
   onHuntStart: () => void;
   onGatherStart: () => void;
   disabled: boolean;
@@ -25,34 +28,85 @@ const gatherButtonClasses =
 
 const PlayerActions: React.FC<PlayerActionsProps> = ({
   survivors,
-  onHuntComplete,
   onGatherComplete,
+  onHuntComplete,
   onHuntStart,
   onGatherStart,
   disabled,
   currentAction,
 }) => {
-  const isHunting = currentAction === 'hunting';
+  const handleMiniGameHuntComplete = (success: boolean) => {
+    const hunterId = 'player';
+    let huntResultData: HuntResult;
+
+    if (success) {
+      huntResultData = {
+        hunterId,
+        foodGained: 5,
+        healthChange: 0,
+        outcomeText: 'Success! You managed to find some edible scraps.',
+      };
+    } else {
+      huntResultData = {
+        hunterId,
+        foodGained: 0,
+        healthChange: -5,
+        outcomeText: 'Failure. The hunt was unsuccessful, and you took a tumble.',
+      };
+    }
+    onHuntComplete(huntResultData);
+  };
+
+  const handleMiniGameGatherComplete = (success: boolean) => {
+    const gathererId = 'player';
+    let gatherResultData: GatherResult;
+
+    if (success) {
+      gatherResultData = {
+        gathererId,
+        waterGained: 5,
+        healthChange: 0,
+        outcomeText: 'Success! You purified a decent amount of water.',
+      };
+    } else {
+      gatherResultData = {
+        gathererId,
+        waterGained: 0,
+        healthChange: 0,
+        outcomeText: 'Failure. The pump mechanism sputtered, yielding no usable water.',
+      };
+    }
+    onGatherComplete(gatherResultData);
+  };
+
   const isGathering = currentAction === 'gathering';
 
   return (
-    <div className="mt-4 pt-4 border-t border-olive/30 flex flex-col sm:flex-row gap-3 sm:gap-4">
-      <button
-        onClick={onHuntStart}
-        disabled={disabled || isHunting}
-        className={`${buttonBaseClasses} ${huntButtonClasses}`}
-      >
-        <Crosshair className="w-5 h-5" />
-        <span>{isHunting ? 'Hunting...' : 'Hunt for Food'}</span>
-      </button>
-      <button
-        onClick={onGatherStart}
-        disabled={disabled || isGathering}
-        className={`${buttonBaseClasses} ${gatherButtonClasses}`}
-      >
-        <Droplets className="w-5 h-5" />
-        <span>{isGathering ? 'Gathering...' : 'Gather Water'}</span>
-      </button>
+    <div className="mt-4 pt-4 border-t border-olive/30 flex flex-col sm:flex-row gap-3 sm:gap-4 min-h-[60px]">
+      {currentAction === 'hunting' ? (
+        <HuntingMiniGame onComplete={handleMiniGameHuntComplete} difficulty={1} />
+      ) : currentAction === 'gathering' ? (
+        <GatherWaterMiniGame onComplete={handleMiniGameGatherComplete} difficulty={1} />
+      ) : (
+        <>
+          <button
+            onClick={onHuntStart}
+            disabled={disabled}
+            className={`${buttonBaseClasses} ${huntButtonClasses}`}
+          >
+            <Crosshair className="w-5 h-5" />
+            <span>Hunt for Food</span>
+          </button>
+          <button
+            onClick={onGatherStart}
+            disabled={disabled || isGathering}
+            className={`${buttonBaseClasses} ${gatherButtonClasses}`}
+          >
+            <Droplets className="w-5 h-5" />
+            <span>Gather Water</span>
+          </button>
+        </>
+      )}
     </div>
   );
 };
