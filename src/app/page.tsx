@@ -1,18 +1,17 @@
 'use client';
 
-import { useGameState } from '../hooks/useGameState';
+import { useState } from 'react';
+import { useGame } from '../context/GameContext';
 import ResourceDisplay from '../components/game/ResourceDisplay';
 import EventDisplay from '../components/game/EventDisplay';
 import ChoiceList from '../components/game/ChoiceList';
 import GameOverScreen from '../components/game/GameOverScreen';
 import SurvivorDisplay from '../components/game/SurvivorDisplay';
-import { useState } from 'react';
 import Prologue from '../components/game/Prologue';
 import NameCompanionInput from '../components/game/NameCompanionInput';
-import { GameActionTypes } from '@/actions/gameActions';
 import PlayerActions from '../components/game/PlayerActions';
 
-function GamePage() {
+export default function GamePage() {
   const {
     day,
     food,
@@ -31,11 +30,12 @@ function GamePage() {
     isNamingCompanion,
     companionToNameInfo,
     dispatch,
-    theme,
-  } = useGameState();
+    handleHuntComplete,
+    handleGatherComplete,
+  } = useGame();
 
   const [isStarted, setIsStarted] = useState(false);
-  const [currentAction, setCurrentAction] = useState(null);
+  const [currentAction, setCurrentAction] = useState<string | null>(null);
 
   const handleHuntStart = () => {
     setCurrentAction('hunting');
@@ -45,21 +45,13 @@ function GamePage() {
     setCurrentAction('gathering');
   };
 
-  const handleHuntComplete = (huntResults) => {
-    if (isLoading || isNamingCompanion || isGameOver) return;
+  const handleActionComplete = (results: any) => {
     setCurrentAction(null);
-    dispatch({ type: GameActionTypes.RESOLVE_HUNTING, payload: huntResults });
-    dispatch({ type: GameActionTypes.CLEAR_ERROR });
-  };
-
-  const handleGatherComplete = (gatherResults) => {
-    if (isLoading || isNamingCompanion || isGameOver) return;
-    setCurrentAction(null);
-    dispatch({
-      type: GameActionTypes.RESOLVE_GATHER_WATER,
-      payload: gatherResults,
-    });
-    dispatch({ type: GameActionTypes.CLEAR_ERROR });
+    if (currentAction === 'hunting') {
+      handleHuntComplete(results);
+    } else if (currentAction === 'gathering') {
+      handleGatherComplete(results);
+    }
   };
 
   if (isGameOver) {
@@ -69,12 +61,6 @@ function GamePage() {
   const mainBgClass = isStarted ? 'bg-stone' : 'bg-charcoal';
   const canTakeAction =
     !isLoading && !isNamingCompanion && !isGameOver && !currentAction;
-
-  console.log('Rendering GamePage component', {
-    isLoading,
-    isNamingCompanion,
-    currentAction,
-  });
 
   return (
     <main
@@ -112,8 +98,8 @@ function GamePage() {
             <>
               <PlayerActions
                 survivors={survivors}
-                onHuntComplete={handleHuntComplete}
-                onGatherComplete={handleGatherComplete}
+                onHuntComplete={handleActionComplete}
+                onGatherComplete={handleActionComplete}
                 onHuntStart={handleHuntStart}
                 onGatherStart={handleGatherStart}
                 disabled={!canTakeAction}
@@ -133,14 +119,13 @@ function GamePage() {
           )}
 
           {error && !isNamingCompanion && (
-            <p className="text-red-500 mt-2 font-semibold text-center w-full bg-red-100 p-2 rounded border border-red-300">
+            <div className="text-red-500 mt-2 font-semibold text-center w-full bg-red-100 p-2 rounded border border-red-300" 
+                 role="alert" aria-live="assertive">
               Error: {error}
-            </p>
+            </div>
           )}
         </div>
       )}
     </main>
   );
-}
-
-export default GamePage;
+} 

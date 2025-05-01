@@ -1,3 +1,5 @@
+'use client';
+
 import { useReducer, useEffect, useCallback } from 'react';
 import {
   gameStateReducer,

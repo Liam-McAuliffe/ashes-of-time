@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { GameActionTypes } from '@/actions/gameActions';
+import { GameActionTypes } from '../../actions/gameActions';
 import { PawPrint } from 'lucide-react';
 
 const NameCompanionInput = ({ companionInfo, dispatch }) => {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Droplet, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { calculateGatherWaterOutcome } from '@/utils/gameLogic';
+import { calculateGatherWaterOutcome } from '../../utils/gameLogic';
 
 function GatherWaterSelection({
   survivors,

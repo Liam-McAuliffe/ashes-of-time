@@ -9,7 +9,7 @@ import {
 import {
   calculateHuntSuccessOutcome,
   calculateHuntFailureOutcome,
-} from '@/utils/gameLogic';
+} from '../../utils/gameLogic';
 
 function HuntSelection({ survivors, onHuntComplete, onHuntStart, disabled }) {
   const [selectedHunterId, setSelectedHunterId] = useState('player');
