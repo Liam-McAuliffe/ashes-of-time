@@ -44,6 +44,13 @@ export interface GameChoice {
   };
 }
 
+// Add type for event history entries
+export interface EventHistoryEntry {
+  day: number;
+  description: string; // The event description from that day
+  outcome: string;     // The outcome of the choice made that day
+}
+
 export interface GameState {
   day: number;
   food: number;
@@ -64,6 +71,7 @@ export interface GameState {
     companion: Companion;
   } | null;
   theme: string;
+  eventHistory: EventHistoryEntry[]; // Add event history array
 }
 
 export interface HuntResult {

@@ -7,6 +7,7 @@ import {
   GatherResult,
   Companion,
   SurvivorChange,
+  EventHistoryEntry,
 } from '../../types/game';
 import {
   checkGameOver,
@@ -16,6 +17,8 @@ import {
 } from '../../utils/gameLogic';
 import { fetchGameEvent, PromptContext, EventResponse } from '../../services/aiService';
 import { RootState } from '../index';
+
+const MAX_HISTORY_LENGTH = 3;
 
 const initialState: GameState = {
   day: 1,
@@ -36,6 +39,7 @@ const initialState: GameState = {
   isNamingCompanion: false,
   companionToNameInfo: null,
   theme: 'Nuclear Winter',
+  eventHistory: [],
 };
 
 export const fetchEvent = createAsyncThunk<
@@ -54,6 +58,7 @@ export const fetchEvent = createAsyncThunk<
       survivors: state.survivors,
       theme: state.theme,
       previousDayOutcome: state.lastOutcome,
+      eventHistory: state.eventHistory,
     };
 
     const eventData = await fetchGameEvent(context);
@@ -197,10 +202,10 @@ const gameSlice = createSlice({
       state.currentChoices = null;
     },
     loadGameState: (state, action: PayloadAction<GameState>) => {
-      return { ...action.payload, isLoading: false, error: null };
+      return { ...action.payload, isLoading: false, error: null, eventHistory: action.payload.eventHistory || [] };
     },
-    resetGame: () => {
-      return { ...initialState, theme: initialState.theme, isLoading: true };
+    resetGame: (state) => {
+      return { ...initialState, theme: state.theme, isLoading: true, eventHistory: [] };
     },
   },
   extraReducers: (builder) => {
@@ -262,6 +267,9 @@ function proceedToNextDay(
 ) {
     if (state.isGameOver) return;
 
+    const completedEventText = state.eventText;
+    const completedChoiceOutcome = state.lastOutcome;
+
     const gameOverMsgDirect = checkGameOver(foodBeforeConsumption, waterBeforeConsumption, survivorsBeforeConsumption);
     if (gameOverMsgDirect) {
         state.food = foodBeforeConsumption;
@@ -305,6 +313,15 @@ function proceedToNextDay(
         return;
     }
 
+    if (previousDay >= 1 && completedEventText && completedChoiceOutcome) {
+        const historyEntry: EventHistoryEntry = {
+            day: previousDay,
+            description: completedEventText,
+            outcome: completedChoiceOutcome,
+        };
+        state.eventHistory = [historyEntry, ...state.eventHistory].slice(0, MAX_HISTORY_LENGTH);
+    }
+
     state.day = previousDay + 1;
     state.food = foodAfterConsumption;
     state.water = waterAfterConsumption;
@@ -315,6 +332,7 @@ function proceedToNextDay(
     state.error = null;
     state.isNamingCompanion = false;
     state.companionToNameInfo = null;
+    state.currentChoices = null;
 }
 
 export const {

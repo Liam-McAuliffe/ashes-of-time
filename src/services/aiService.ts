@@ -1,4 +1,4 @@
-import type { GameState, GameChoice, Survivor, Companion } from '../types/game';
+import type { GameState, GameChoice, Survivor, Companion, EventHistoryEntry } from '../types/game';
 
 // 1. Define the data structure we send TO the backend API
 // We only need a subset of the full GameState
@@ -9,6 +9,7 @@ export interface PromptContext {
   survivors: Survivor[];
   theme: string;
   previousDayOutcome: string;
+  eventHistory?: EventHistoryEntry[]; // Add optional event history
 }
 
 // 2. Define the expected data structure received FROM the backend API

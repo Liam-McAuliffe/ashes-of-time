@@ -125,6 +125,7 @@ export async function POST(request) {
       : [{ id: 'player', name: 'You', health: 100, statuses: [], companion: null }];
   const survivorCount = survivors.length;
   const survivorNames = survivors.map((s) => s.name);
+  const eventHistory = promptContext.eventHistory || []; // Get history from context
 
   const survivorDetails = survivors
     .map((s) => {
@@ -141,17 +142,25 @@ export async function POST(request) {
     prompt += `* **Outcome of Previous Choice:** ${previousEventOutcome} \n`; 
   }
 
+  // Add Recent History section if available
+  if (eventHistory.length > 0) {
+      prompt += `\n**Recent History (Avoid Repeating):**\n`;
+      // Iterate reverse to show most recent first, limit display slightly for prompt length
+      eventHistory.slice(0, 2).reverse().forEach(entry => {
+          prompt += `* Day ${entry.day}: [Event] ${entry.description.substring(0, 70)}... [Outcome] ${entry.outcome.substring(0, 70)}...\n`;
+      });
+  }
+
   prompt += `\n**Task:**\n`;
 
   if (currentDay === 1) {
     prompt += `1.  Generate an **initial opening scene** (3-5 sentences) for Day 1 based on the **${gameTheme}** theme. Set the stage effectively. DO NOT use phrases implying continuation (like \"second day\").\n`;
   } else {
-    prompt += `1.  Generate a **unique and detailed narrative event** (3-5 sentences) for Day ${currentDay} fitting the **${gameTheme}** theme. \n    * **Crucially, this event MUST be a direct and logical consequence or follow-up to the specific 'Outcome of Previous Choice' provided above.** Do not ignore the previous outcome.\n    * **AVOID REPETITION:** Do NOT reuse common phrases (like \"biting wind\", \"skeletal remains\"), items (like \"metal container\"), or generic situations (like simple scavenging) from recent days unless it makes strong narrative sense. Introduce diverse locations, challenges, weather, and encounters.\n    * Manage status effects logically (replace lesser severity with greater, no contradictions). Reflect changes in effects.\n`;
+    prompt += `1.  Generate a **unique and detailed narrative event** (3-5 sentences) for Day ${currentDay} fitting the **${gameTheme}** theme. \n    * **Crucially, this event MUST be a direct and logical consequence or follow-up to the specific 'Outcome of Previous Choice' provided above.** \n    * **CONSIDER RECENT HISTORY:** Review the 'Recent History' provided. **AVOID REPEATING** situations, locations, specific challenges, or narrative themes mentioned there. Ensure variety.\n    * Manage status effects logically (replace lesser severity with greater, no contradictions). Reflect changes in effects.\n`;
   }
 
-  prompt += `\n2.  Provide **2-3 distinct and meaningful choices** related to the event.\n    * Choices must be logical actions with clear trade-offs (risk/reward, cost/gain, moral choices).\n    * **Survivor Limit Rule:** No 'new' survivor choices if count >= 5.\n    * **New Survivor/Companion Guidance:** RARE encounters (5-10% chance, increasing slightly), MUST arise naturally from narrative. NO companions on Day 1. Target specific survivors without companions. Ensure encounter by Day 5.\n    * **DESCRIPTIVE OUTCOMES:** For each choice, the \"outcome\" field MUST contain a **detailed description (1-2 sentences)** summarizing exactly *what happened* as a result of taking that action. This outcome text is CRITICAL context for the next day's event. Example: Instead of \"Searched the area\", use \"Searching the abandoned shop revealed a rusty first-aid kit but attracted unwanted attention from clicking sounds nearby.\"\n\n3.  **Output Format:**\n    Respond ONLY with a single, valid JSON object. No extra text or markdown.\n\n    \\\`\\\`\\\`json\n    {\n      \"description\": \"...\", // Narrative event / Day 1 scene
-      \"choices\": [\n        {\n          \"id\": \"choice_1\",\n          \"text\": \"...\",\n          \"cost\": { \"food\": 0, \"water\": 0 },\n          \"outcome\": \"...DETAILED outcome description (1-2 sentences)...\", \n          \"effects\": { \"food\": 0, \"water\": 0, \"survivorChanges\": [ /* ... */ ] }\n        }\n        // ... (more choices) ...
-      ]\n    }\n    \\\`\\\`\\\`\n\n---\nGenerate the JSON event data now, focusing on **uniqueness, continuity, and detailed outcomes**:\n`;
+  prompt += `\n2.  Provide **2-3 distinct and meaningful choices** related to the event.\n    * Choices must be logical actions with clear trade-offs (risk/reward, cost/gain, moral choices).\n    * **Survivor Limit Rule:** No 'new' survivor choices if count >= 5.\n    * **New Survivor/Companion Guidance:** RARE encounters (5-10% chance, increasing slightly), MUST arise naturally from narrative. NO companions on Day 1. Target specific survivors without companions. Ensure encounter by Day 5.\n    * **DESCRIPTIVE OUTCOMES:** For each choice, the \"outcome\" field MUST contain a **detailed description (1-2 sentences)** summarizing exactly *what happened* as a result of taking that action. This outcome text is CRITICAL context for the next day's event.\n\n3.  **Output Format:**\n    Respond ONLY with a single, valid JSON object. No extra text or markdown.\n\n    \\\`\\\`\\\`json\n    {\n      \"description\": \"...\", \n      \"choices\": [\n        {\n          \"id\": \"choice_1\",\n          \"text\": \"...\",\n          \"cost\": { \"food\": 0, \"water\": 0 },\n          \"outcome\": \"...DETAILED outcome description (1-2 sentences)...\", \n          \"effects\": { \"food\": 0, \"water\": 0, \"survivorChanges\": [ /* ... */ ] }\n        }\n        // ... (more choices) ...
+      ]\n    }\n    \\\`\\\`\\\`\n\n---\nGenerate the JSON event data now, focusing on **uniqueness, continuity (using previous outcome AND recent history), and detailed outcomes**:\n`;
 
   const response = await ai.models.generateContent({
     model: 'gemini-1.5-flash',
