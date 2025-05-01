@@ -224,6 +224,8 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Missing promptContext in request body.' }, { status: 400 });
   }
 
+  console.log( promptContext);
+
   const currentDay = promptContext.day || 1;
   const currentFood = promptContext.food ?? 'unknown';
   const currentWater = promptContext.water ?? 'unknown';
@@ -305,10 +307,12 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
     * Choices must be logical actions survivors could take in response to the event description.
     * Choices should offer meaningful trade-offs (e.g., risk vs. reward, resource cost vs. potential gain).
     * **Survivor Limit Rule:** If the current survivor count is 5 or more (currently ${survivorCount}), **DO NOT** generate any choices that add a new survivor.
-    * **Status Effects & Health:** Include changes to survivor health and status when appropriate:
-        * Add status effects that make sense (injured, sick, bleeding, exhausted, etc.) based on the choices
-        * Remove status effects when they would logically be cured
-        * Apply health changes that reflect the danger or benefit of each choice
+    * **Status Effects & Health:** Apply health changes and status effects logically based on the choice outcomes.
+        * **ALLOWED STATUSES:** You MUST ONLY use statuses from this exact list: Dehydrated, Malnourished, Injured (Bleeding), Exhausted, Fever, Infected Wound, Hypothermia, Heatstroke, Poisoned, Broken Limb, Companion Bond, Cold, Sick, Hopeful, Scared.
+        * Use \`addStatus\` to apply ONE status per change object.
+        * Use \`removeStatus\` to remove ONE specific status OR use \`"removeStatus": "all_negative"\` to clear all harmful statuses (use sparingly, e.g., for powerful medicine or long rest).
+        * Example: \`{ "target": "You", "healthChange": -10, "addStatus": "Injured (Bleeding)" }\`
+        * Example: \`{ "target": "Maya", "removeStatus": "Fever" }\`
     * **New Survivor/Companion Guidance:**
         * Occasionally (around a 5-10% chance per day, increasing slightly with days passed), consider generating a choice that *could* lead to encountering a potential new survivor (if count < 5) or a potential companion.
         * If a survivor was mentioned in the previous day but not yet added, prioritize a choice that allows recruiting them.
@@ -317,7 +321,7 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
         * If adding a companion, suggest a type (e.g., dog, cat, robot, drone) and a generic initial name.
         * MUST ENCOUNTER A COMPANION OR A SURVIVOR BY DAY 5!
         * REMEMBER TO ADD OTHER PEOPLE TO THE PARTY. THEY ARE NOT ALONE! THIS MAKES IT MORE ENGAGING FOR THE USER!
-    * **ADDING NEW SURVIVORS:** To add a *new* survivor via choice effects, include an object within the \`survivorChanges\` array with the property \`"new": true\`, \`"name": "SurvivorName"\` and \`"health": initialHealthValue\`.
+    * **ADDING NEW SURVIVORS:** To add a *new* survivor via choice effects, include an object within the \`survivorChanges\` array with the property \`"new": true\`, \`"name": "SurvivorName"\` and \`"health": initialHealthValue\`. Include initial statuses if appropriate, e.g., \`"statuses": ["Exhausted", "Malnourished"]\`
     * **DESCRIPTIVE OUTCOMES:** For each choice, the "outcome" field MUST contain a **detailed description (1-2 sentences)** summarizing exactly *what happened* as a result of taking that action.
 
 3.  **Output Format:**
@@ -331,21 +335,18 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
         "text": "...",    // Clear description of the action
         "cost": { "food": 0, "water": 0 }, // Resource cost (can be 0)
         "outcome": "...", // Narrative result of the choice
-        "effects": {
-            "food": 0,       // Net change in food
-            "water": 0,      // Net change in water
-            "survivorChanges": [
-            // Array of changes. Target 'player', 'random', 'all', or specific names: ${survivorNames.join(', ')}
+        "foodChange": 0,
+        "waterChange": 0,
+        "survivorChanges": [
             // Examples:
-            // { "target": "player", "healthChange": -10 },
-            // { "target": "random", "addStatus": "injured" }, // Common statuses: injured, sick, fatigued, bleeding, hopeful, scared
-            // { "target": "${survivorNames.length > 0 ? survivorNames[0] : 'player'}", "removeStatus": "sick" },
-            // { "target": "all", "healthChange": 5, "removeStatus": "fatigued" },
-            // { "target": "new", "name": "Maya", "health": 75, "statuses": [] }, // ONLY IF survivor count < 5
-            // { "target": "player", "addCompanion": { "type": "cat", "name": "Feral Cat" } }, // ONLY IF target has no companion
-            // { "target": "${survivorNames.length > 1 ? survivorNames[1] : 'player'}", "removeCompanion": true } // Only if target HAS a companion
-            ]
-        }
+            // { "target": "player", "healthChange": -10, "addStatus": "Injured (Bleeding)" },
+            // { "target": "random", "addStatus": "Hypothermia" },
+            // { "target": "${survivorNames.length > 0 ? survivorNames[0] : 'player'}", "removeStatus": "Sick" },
+            // { "target": "all", "removeStatus": "Scared", "addStatus": "Hopeful" }, // Add/Remove in separate objects if targeting same person
+            // { "target": "new", "new": true, "name": "Jax", "health": 80, "statuses": ["Malnourished"] }, // Added explicit 'new: true'
+            // { "target": "player", "addCompanion": { "type": "dog", "name": "Stray Dog" } },
+            // { "target": "${survivorNames.length > 1 ? survivorNames[1] : 'player'}", "removeCompanion": true }
+        ]
         },
         // Additional choices follow the same structure
     ]
@@ -353,7 +354,7 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
     \`\`\`
 
 ---
-Generate the JSON event data now based on the current game state and rules, focusing on creating a unique and engaging scenario:
+Generate the JSON event data now based on the current game state and rules, focusing on creating a unique and engaging scenario using ONLY the allowed statuses:
 `;
 
   try { // Add try block for the API call

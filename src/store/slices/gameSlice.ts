@@ -40,6 +40,8 @@ const initialState: GameState = {
   companionToNameInfo: null,
   theme: 'Nuclear Winter',
   eventHistory: [],
+  huntPerformedToday: false,
+  gatherPerformedToday: false,
 };
 
 export const fetchEvent = createAsyncThunk<
@@ -71,7 +73,7 @@ const gameSlice = createSlice({
   reducers: {
     applyChoice: (state, action: PayloadAction<{ choice: GameChoice }>) => {
       const { choice } = action.payload;
-      const { food: startingFood, water: startingWater, day: currentDay } = state;
+      const { food: startingFood, water: startingWater, day: currentDay, survivors: survivorsBefore } = state;
 
       let tempFood = startingFood - (choice.cost?.food || 0);
       let tempWater = startingWater - (choice.cost?.water || 0);
@@ -80,9 +82,15 @@ const gameSlice = createSlice({
       tempWater += choice.waterChange || 0;
       
       let survivorsAfterChoice = applySurvivorChanges(
-        state.survivors,
-        choice.survivorChanges
+        survivorsBefore,
+        choice.survivorChanges || []
       );
+
+      survivorsAfterChoice = survivorsAfterChoice.map(survivor => {
+        const initialHealth = survivorsBefore.find(s => s.id === survivor.id)?.health ?? survivor.health;
+        const change = survivor.health - initialHealth;
+        return { ...survivor, healthChange: change !== 0 ? change : undefined };
+      });
 
       tempFood = Math.max(0, tempFood);
       tempWater = Math.max(0, tempWater);
@@ -92,8 +100,8 @@ const gameSlice = createSlice({
 
       let newlyAddedCompanionInfo: { survivorId: string; companion: Companion } | null = null;
       for (const survivor of survivorsAfterChoice) {
-        const oldSurvivor = state.survivors.find((s) => s.id === survivor.id);
-        if (survivor && survivor.companion && (!oldSurvivor || !oldSurvivor.companion)) {
+        const oldSurvivor = survivorsBefore.find((s) => s.id === survivor.id);
+        if (survivor.companion && (!oldSurvivor || !oldSurvivor.companion)) {
           if (!survivor.companion.id) {
             survivor.companion.id = `comp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
           }
@@ -101,56 +109,80 @@ const gameSlice = createSlice({
             survivorId: survivor.id,
             companion: survivor.companion, 
           };
+          console.log("Companion detected, setting info:", newlyAddedCompanionInfo);
           break;
         }
       }
       
+      state.survivors = survivorsAfterChoice;
+      state.food = tempFood;
+      state.water = tempWater;
+      state.foodChange = tempFood - startingFood;
+      state.waterChange = tempWater - startingWater;
+      
       if (newlyAddedCompanionInfo) {
-        state.food = tempFood;
-        state.water = tempWater;
-        state.survivors = survivorsAfterChoice;
-        state.foodChange = tempFood - startingFood;
-        state.waterChange = tempWater - startingWater;
+        console.log("Proceeding to naming companion...");
         state.isNamingCompanion = true;
         state.companionToNameInfo = newlyAddedCompanionInfo;
         state.isLoading = false;
         state.error = null;
-        return;
+        return; 
+      } else {
+        console.log("No new companion detected or already processed, proceeding to next day...");
+        proceedToNextDay(state, startingFood, startingWater, tempFood, tempWater, survivorsAfterChoice, currentDay);
       }
-       
-      proceedToNextDay(state, startingFood, startingWater, tempFood, tempWater, survivorsAfterChoice, currentDay);
     },
     resolveHunting: (state, action: PayloadAction<HuntResult>) => {
-      const { hunterId, foodGained, healthChange, outcomeText } = action.payload;
-      const { food: startingFood, water: startingWater, day: currentDay } = state;
+      const { hunterId, foodGained, outcomeText } = action.payload;
+      const { food: startingFood, water: startingWater, survivors: survivorsBefore } = state;
 
-      let tempFood = startingFood + foodGained;
-      const survivorsAfterHunt = applySurvivorChanges(
-        state.survivors,
-        [{ target: hunterId, healthChange: healthChange }]
+      const healthCost = -(7 + Math.floor(Math.random() * 9));
+      let survivorsAfterHunt = applySurvivorChanges(
+        survivorsBefore,
+        [{ target: hunterId, healthChange: healthCost }]
       );
 
-      tempFood = Math.max(0, tempFood);
-      state.lastOutcome = outcomeText;
-      state.currentChoices = null;
+      survivorsAfterHunt = survivorsAfterHunt.map(survivor => {
+        const initialHealth = survivorsBefore.find(s => s.id === survivor.id)?.health ?? survivor.health;
+        const change = survivor.health - initialHealth;
+        return { ...survivor, healthChange: change !== 0 ? change : undefined };
+      });
 
-      proceedToNextDay(state, startingFood, startingWater, tempFood, state.water, survivorsAfterHunt, currentDay);
+      let tempFood = Math.max(0, startingFood + foodGained);
+
+      state.survivors = survivorsAfterHunt;
+      state.food = tempFood;
+      state.lastOutcome = `${outcomeText} The effort cost ${Math.abs(healthCost)} health.`;
+      state.foodChange = tempFood - startingFood;
+      state.waterChange = state.water - startingWater; 
+      state.huntPerformedToday = true;
+      state.isLoading = false;
     },
     resolveGatherWater: (state, action: PayloadAction<GatherResult>) => {
-      const { gathererId, waterGained, healthChange, outcomeText } = action.payload;
-      const { food: startingFood, water: startingWater, day: currentDay } = state;
+      const { gathererId, waterGained, outcomeText } = action.payload;
+      const { food: startingFood, water: startingWater, survivors: survivorsBefore } = state;
 
-      let tempWater = startingWater + waterGained;
-      const survivorsAfterGather = applySurvivorChanges(
-        state.survivors,
-        [{ target: gathererId, healthChange: healthChange }]
+      const healthCost = -(5 + Math.floor(Math.random() * 6)); 
+      let survivorsAfterGather = applySurvivorChanges(
+        survivorsBefore,
+        [{ target: gathererId, healthChange: healthCost }]
       );
 
-      tempWater = Math.max(0, tempWater);
-      state.lastOutcome = outcomeText;
-      state.currentChoices = null;
+      survivorsAfterGather = survivorsAfterGather.map(survivor => {
+        const initialHealth = survivorsBefore.find(s => s.id === survivor.id)?.health ?? survivor.health;
+        const change = survivor.health - initialHealth;
+        return { ...survivor, healthChange: change !== 0 ? change : undefined };
+      });
 
-      proceedToNextDay(state, startingFood, startingWater, state.food, tempWater, survivorsAfterGather, currentDay);
+      let tempWater = Math.max(0, startingWater + waterGained);
+
+      state.survivors = survivorsAfterGather;
+      state.water = tempWater;
+      state.lastOutcome = `${outcomeText} The effort cost ${Math.abs(healthCost)} health.`;
+      state.foodChange = state.food - startingFood;
+      state.waterChange = tempWater - startingWater;
+      state.gatherPerformedToday = true;
+      state.isLoading = false;
     },
     finishNamingCompanion: (
       state,
@@ -159,12 +191,12 @@ const gameSlice = createSlice({
       const { survivorId, newName } = action.payload;
       if (!state.companionToNameInfo || !state.isNamingCompanion) return;
 
-      const { food: startingFood, water: startingWater, day: currentDay } = state;
+      const { food: startingFood, water: startingWater, day: currentDay, survivors: survivorsBeforeNaming } = state;
 
       const finalName = newName.trim() || state.companionToNameInfo.companion.name;
       const outcome = `You named the new companion '${finalName}'.`;
 
-      const updatedSurvivors = state.survivors.map(survivor => 
+      const updatedSurvivors = survivorsBeforeNaming.map(survivor => 
          survivor.id === survivorId && survivor.companion
            ? { ...survivor, companion: { ...survivor.companion, name: finalName } }
            : survivor
@@ -178,14 +210,14 @@ const gameSlice = createSlice({
     },
     skipNamingCompanion: (state) => {
       if (!state.isNamingCompanion) return;
-      const { food: startingFood, water: startingWater, day: currentDay } = state;
+      const { food: startingFood, water: startingWater, day: currentDay, survivors: survivorsBeforeSkipping } = state;
       
       const outcome = `You decided not to name the ${state.companionToNameInfo?.companion?.type || 'new arrival'} for now.`;
       state.lastOutcome += ` ${outcome}`;
       state.isNamingCompanion = false;
       state.companionToNameInfo = null;
 
-      proceedToNextDay(state, startingFood, startingWater, state.food, state.water, state.survivors, currentDay);
+      proceedToNextDay(state, startingFood, startingWater, state.food, state.water, survivorsBeforeSkipping, currentDay);
     },
     setChoiceError: (state, action: PayloadAction<{ error: string }>) => {
       state.error = action.payload.error;
@@ -270,6 +302,53 @@ function proceedToNextDay(
 
     const completedEventText = state.eventText;
     const completedChoiceOutcome = state.lastOutcome;
+    
+    const player = survivorsBeforeConsumption.find(s => s.id === 'player');
+    if (player && player.health > 0 && player.statuses.includes('Fever')) {
+        if (Math.random() < 0.25) {
+            state.lastOutcome = `${completedChoiceOutcome} // The fever overwhelmed you, causing you to lose track of time. A day passes in a haze.`;
+            
+            const { foodConsumed, waterConsumed } = calculateDailyConsumption(survivorsBeforeConsumption);
+            let foodAfterConsumption = foodBeforeConsumption - foodConsumed;
+            let waterAfterConsumption = waterBeforeConsumption - waterConsumed;
+            
+            let survivorsAfterDailyEffects = applyDailyStatusEffects(survivorsBeforeConsumption);
+            
+            foodAfterConsumption = Math.max(0, foodAfterConsumption);
+            waterAfterConsumption = Math.max(0, waterAfterConsumption);
+            
+            const gameOverMsgAfterLostDay = checkGameOver(
+                foodAfterConsumption,
+                waterAfterConsumption,
+                survivorsAfterDailyEffects
+            );
+            
+            if (gameOverMsgAfterLostDay) {
+                 state.food = foodAfterConsumption;
+                 state.water = waterAfterConsumption;
+                 state.survivors = survivorsAfterDailyEffects;
+                 state.isGameOver = true;
+                 state.gameOverMessage = `${gameOverMsgAfterLostDay} (Lost day to fever). Game Over.`;
+                 state.eventText = `Day ${previousDay}: The fever claims you... ${gameOverMsgAfterLostDay}`;
+                 state.isLoading = false;
+                 state.currentChoices = null;
+                 return;
+            }
+            
+            state.day = previousDay + 1;
+            state.food = foodAfterConsumption;
+            state.water = waterAfterConsumption;
+            state.survivors = survivorsAfterDailyEffects;
+            state.foodChange = foodAfterConsumption - startingFood; 
+            state.waterChange = waterAfterConsumption - startingWater;
+            state.isLoading = true;
+            state.error = null;
+            state.isNamingCompanion = false;
+            state.companionToNameInfo = null;
+            state.currentChoices = null;
+            return;
+        }
+    }
 
     const gameOverMsgDirect = checkGameOver(foodBeforeConsumption, waterBeforeConsumption, survivorsBeforeConsumption);
     if (gameOverMsgDirect) {
@@ -290,7 +369,9 @@ function proceedToNextDay(
     let foodAfterConsumption = foodBeforeConsumption - foodConsumed;
     let waterAfterConsumption = waterBeforeConsumption - waterConsumed;
 
-    let survivorsAfterDailyEffects = applyDailyStatusEffects(survivorsBeforeConsumption);
+    let survivorsBeforeDailyEffects = survivorsBeforeConsumption.map(s => ({ ...s, healthChange: undefined }));
+
+    let survivorsAfterDailyEffects = applyDailyStatusEffects(survivorsBeforeDailyEffects);
 
     foodAfterConsumption = Math.max(0, foodAfterConsumption);
     waterAfterConsumption = Math.max(0, waterAfterConsumption);
@@ -334,6 +415,8 @@ function proceedToNextDay(
     state.isNamingCompanion = false;
     state.companionToNameInfo = null;
     state.currentChoices = null;
+    state.huntPerformedToday = false;
+    state.gatherPerformedToday = false;
 }
 
 export const {

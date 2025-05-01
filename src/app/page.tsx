@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import Image from 'next/image';
 import { useAppSelector, useAppDispatch, useEventFetcher } from '../hooks';
 import {
@@ -20,7 +20,10 @@ import SurvivorDisplay from '../components/game/SurvivorDisplay';
 import Prologue from '../components/game/Prologue';
 import NameCompanionInput from '../components/game/NameCompanionInput';
 import PlayerActions from '../components/game/PlayerActions';
-import type { GameChoice, HuntResult, GatherResult } from '../types/game';
+import { ActorSelectionModal } from '../components/game/ActorSelectionModal';
+import HuntingMiniGame from '../components/game/HuntingMiniGame';
+import GatherWaterMiniGame from '../components/game/GatherWaterMiniGame';
+import type { GameChoice, HuntResult, GatherResult, Survivor } from '../types/game';
 
 export default function GamePage() {
   const dispatch = useAppDispatch();
@@ -30,7 +33,9 @@ export default function GamePage() {
   const gameState = useAppSelector((state) => state.game);
   
   const [isStarted, setIsStarted] = useState(false);
-  const [currentAction, setCurrentAction] = useState<string | null>(null);
+  const [selectingActorFor, setSelectingActorFor] = useState<null | 'hunt' | 'gather'>(null);
+  const [activeMiniGame, setActiveMiniGame] = useState<null | 'hunt' | 'gather'>(null);
+  const [actorForMiniGame, setActorForMiniGame] = useState<Survivor | null>(null);
 
   const handleChoice = (choice: GameChoice) => {
     if (gameState.isGameOver || gameState.isLoading) return;
@@ -52,23 +57,46 @@ export default function GamePage() {
     dispatch(applyChoice({ choice }));
   };
 
-  const handleHuntStart = () => {
-    setCurrentAction('hunting');
-  };
+  const handleSelectActor = useCallback((actionType: 'hunt' | 'gather') => {
+    setSelectingActorFor(actionType);
+  }, []);
 
-  const handleGatherStart = () => {
-    setCurrentAction('gathering');
-  };
+  const startActionWithActor = useCallback((actorId: string, actionType: 'hunt' | 'gather') => {
+    const actor = gameState.survivors.find(s => s.id === actorId);
+    if (!actor) return;
+    
+    setSelectingActorFor(null);
+    setActorForMiniGame(actor);
+    setActiveMiniGame(actionType);
+  }, [gameState.survivors]);
 
-  const handleHuntComplete = (results: HuntResult) => {
-    setCurrentAction(null);
-    dispatch(resolveHunting(results));
-  };
+  const cancelActorSelection = useCallback(() => {
+    setSelectingActorFor(null);
+  }, []);
 
-  const handleGatherComplete = (results: GatherResult) => {
-    setCurrentAction(null);
-    dispatch(resolveGatherWater(results));
-  };
+  const handleHuntComplete = useCallback((success: boolean) => {
+    if (!actorForMiniGame) return;
+
+    const result: HuntResult = success ? 
+        { hunterId: actorForMiniGame.id, foodGained: 5, outcomeText: `${actorForMiniGame.name} succeeded!` } :
+        { hunterId: actorForMiniGame.id, foodGained: 0, outcomeText: `${actorForMiniGame.name} failed.` };
+    
+    dispatch(resolveHunting(result));
+    setActiveMiniGame(null);
+    setActorForMiniGame(null);
+  }, [dispatch, actorForMiniGame]);
+
+  const handleGatherComplete = useCallback((success: boolean) => {
+    if (!actorForMiniGame) return;
+
+    const result: GatherResult = success ? 
+        { gathererId: actorForMiniGame.id, waterGained: 5, outcomeText: `${actorForMiniGame.name} succeeded!` } : 
+        { gathererId: actorForMiniGame.id, waterGained: 0, outcomeText: `${actorForMiniGame.name} failed.` };
+
+    dispatch(resolveGatherWater(result));
+    setActiveMiniGame(null);
+    setActorForMiniGame(null);
+  }, [dispatch, actorForMiniGame]);
 
   const handleStartGame = () => {
     setIsStarted(true);
@@ -81,10 +109,10 @@ export default function GamePage() {
 
   const mainBgClass = isStarted ? 'bg-stone' : 'bg-charcoal';
   const canTakeAction =
-    !gameState.isLoading && !gameState.isNamingCompanion && !gameState.isGameOver && !currentAction;
+    !gameState.isLoading && !gameState.isNamingCompanion && !gameState.isGameOver && !activeMiniGame && !selectingActorFor;
 
   return (
-    <main className={`min-h-screen ${mainBgClass} text-olive transition-colors duration-500 font-mono`}>
+    <main className={`min-h-screen ${mainBgClass} text-olive transition-colors duration-500 font-mono relative`}>
       {!isStarted ? (
         <Prologue onStartGame={handleStartGame} />
       ) : (
@@ -92,18 +120,6 @@ export default function GamePage() {
           
           {/* Column 1: Status Info */}
           <div className="md:w-1/3 lg:w-1/4 flex flex-col gap-4">
-              <div className="mb-2 flex items-center justify-around md:justify-start gap-2">
-                <Image 
-                  src="/ashes-logo.webp" 
-                  alt="Ashes of Time" 
-                  width={50} 
-                  height={50} 
-                  className="drop-shadow-md"
-                />
-                <span className="text-4xl font-bold text-rust tracking-wider">
-                  Ashes of Time
-                </span>
-              </div>
               <ResourceDisplay
                 day={gameState.day}
                 food={gameState.food}
@@ -135,25 +151,49 @@ export default function GamePage() {
                     <ChoiceList
                       choices={gameState.currentChoices}
                       onChoiceSelected={handleChoice}
-                      isLoading={gameState.isLoading || currentAction !== null}
+                      isLoading={gameState.isLoading || activeMiniGame !== null || selectingActorFor !== null}
                       currentFood={gameState.food}
                       currentWater={gameState.water}
                     />
                   )}
                   <PlayerActions
                     survivors={gameState.survivors}
-                    onHuntComplete={handleHuntComplete}
-                    onGatherComplete={handleGatherComplete}
-                    onHuntStart={handleHuntStart}
-                    onGatherStart={handleGatherStart}
+                    onSelectActor={handleSelectActor}
                     disabled={!canTakeAction}
-                    currentAction={currentAction}
+                    currentAction={null}
+                    huntPerformedToday={gameState.huntPerformedToday}
+                    gatherPerformedToday={gameState.gatherPerformedToday}
                   />
                 </>
               )}
           </div>
 
         </div>
+      )}
+      
+      {selectingActorFor && (
+        <ActorSelectionModal 
+            survivors={gameState.survivors}
+            actionType={selectingActorFor}
+            onSelect={(actorId) => startActionWithActor(actorId, selectingActorFor)}
+            onCancel={cancelActorSelection}
+        />
+      )}
+      
+      {activeMiniGame === 'hunt' && actorForMiniGame && (
+        <HuntingMiniGame 
+            onComplete={handleHuntComplete} 
+            difficulty={1}
+            actorId={actorForMiniGame.id}
+            actorStatuses={actorForMiniGame.statuses}
+        />
+      )}
+      {activeMiniGame === 'gather' && actorForMiniGame && (
+        <GatherWaterMiniGame 
+            onComplete={handleGatherComplete} 
+            difficulty={1}
+            actorId={actorForMiniGame.id}
+        />
       )}
     </main>
   );

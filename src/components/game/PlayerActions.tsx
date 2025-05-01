@@ -1,17 +1,14 @@
-import { Survivor, GatherResult, HuntResult } from '../../types/game';
+import { Survivor, StatusEffect } from '../../types/game';
 import { Crosshair, Droplets } from 'lucide-react';
-import { useAppDispatch } from '../../hooks';
-import HuntingMiniGame from './HuntingMiniGame';
-import GatherWaterMiniGame from './GatherWaterMiniGame';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/Tooltip';
 
 interface PlayerActionsProps {
   survivors: Survivor[];
-  onGatherComplete: (result: GatherResult) => void;
-  onHuntComplete: (result: HuntResult) => void;
-  onHuntStart: () => void;
-  onGatherStart: () => void;
+  onSelectActor: (actionType: 'hunt' | 'gather') => void;
   disabled: boolean;
   currentAction: string | null;
+  huntPerformedToday: boolean;
+  gatherPerformedToday: boolean;
 }
 
 // Common button classes for consistency
@@ -28,85 +25,73 @@ const gatherButtonClasses =
 
 const PlayerActions: React.FC<PlayerActionsProps> = ({
   survivors,
-  onGatherComplete,
-  onHuntComplete,
-  onHuntStart,
-  onGatherStart,
+  onSelectActor,
   disabled,
   currentAction,
+  huntPerformedToday,
+  gatherPerformedToday,
 }) => {
-  const handleMiniGameHuntComplete = (success: boolean) => {
-    const hunterId = 'player';
-    let huntResultData: HuntResult;
+  const playerSurvivor = survivors.find(s => s.id === 'player' || s.isPlayer);
+  const playerStatuses = playerSurvivor?.statuses || [];
 
-    if (success) {
-      huntResultData = {
-        hunterId,
-        foodGained: 5,
-        healthChange: 0,
-        outcomeText: 'Success! You managed to find some edible scraps.',
-      };
-    } else {
-      huntResultData = {
-        hunterId,
-        foodGained: 0,
-        healthChange: -5,
-        outcomeText: 'Failure. The hunt was unsuccessful, and you took a tumble.',
-      };
-    }
-    onHuntComplete(huntResultData);
+  const cannotHunt = playerStatuses.includes('Broken Limb');
+  const isExhausted = playerStatuses.includes('Exhausted');
+  const dailyActionTaken = huntPerformedToday || gatherPerformedToday;
+
+  // Can *any* living survivor hunt/gather?
+  const canAnyoneHunt = survivors.some(s => s.health > 0 && !s.statuses.includes('Broken Limb'));
+  const canAnyoneGather = survivors.some(s => s.health > 0);
+  
+  // Disable button if no eligible actors, or exhausted, or action taken
+  const huntDisabled = disabled || isExhausted || dailyActionTaken || !canAnyoneHunt;
+  const gatherDisabled = disabled || isExhausted || dailyActionTaken || !canAnyoneGather;
+
+  const getHuntTooltipText = () => {
+    if (!canAnyoneHunt && !isExhausted && !dailyActionTaken) return "No one is able to hunt (check statuses).";
+    if (isExhausted) return "Too exhausted for strenuous activity today.";
+    if (dailyActionTaken) return "Already performed a daily action.";
+    return null;
   };
 
-  const handleMiniGameGatherComplete = (success: boolean) => {
-    const gathererId = 'player';
-    let gatherResultData: GatherResult;
-
-    if (success) {
-      gatherResultData = {
-        gathererId,
-        waterGained: 5,
-        healthChange: 0,
-        outcomeText: 'Success! You purified a decent amount of water.',
-      };
-    } else {
-      gatherResultData = {
-        gathererId,
-        waterGained: 0,
-        healthChange: 0,
-        outcomeText: 'Failure. The pump mechanism sputtered, yielding no usable water.',
-      };
-    }
-    onGatherComplete(gatherResultData);
+  const getGatherTooltipText = () => {
+    if (!canAnyoneGather && !isExhausted && !dailyActionTaken) return "No one is able to gather water.";
+    if (isExhausted) return "Too exhausted for strenuous activity today.";
+    if (dailyActionTaken) return "Already performed a daily action.";
+    return null;
   };
 
-  const isGathering = currentAction === 'gathering';
+  const huntTooltipText = getHuntTooltipText();
+  const gatherTooltipText = getGatherTooltipText();
 
   return (
     <div className="mt-4 pt-4 border-t border-olive/30 flex flex-col sm:flex-row gap-3 sm:gap-4 min-h-[60px]">
-      {currentAction === 'hunting' ? (
-        <HuntingMiniGame onComplete={handleMiniGameHuntComplete} difficulty={1} />
-      ) : currentAction === 'gathering' ? (
-        <GatherWaterMiniGame onComplete={handleMiniGameGatherComplete} difficulty={1} />
-      ) : (
-        <>
-          <button
-            onClick={onHuntStart}
-            disabled={disabled}
-            className={`${buttonBaseClasses} ${huntButtonClasses}`}
-          >
-            <Crosshair className="w-5 h-5" />
-            <span>Hunt for Food</span>
-          </button>
-          <button
-            onClick={onGatherStart}
-            disabled={disabled || isGathering}
-            className={`${buttonBaseClasses} ${gatherButtonClasses}`}
-          >
-            <Droplets className="w-5 h-5" />
-            <span>Gather Water</span>
-          </button>
-        </>
-      )}
+        <Tooltip placement="top" open={huntDisabled ? undefined : false}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onSelectActor('hunt')}
+                disabled={huntDisabled}
+                className={`${buttonBaseClasses} ${huntButtonClasses}`}
+              >
+                <Crosshair className="w-5 h-5" />
+                <span>Hunt for Food</span>
+              </button>
+            </TooltipTrigger>
+            {huntTooltipText && <TooltipContent>{huntTooltipText}</TooltipContent>}
+        </Tooltip>
+
+        <Tooltip placement="top" open={gatherDisabled ? undefined : false}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => onSelectActor('gather')}
+                disabled={gatherDisabled}
+                className={`${buttonBaseClasses} ${gatherButtonClasses}`}
+              >
+                <Droplets className="w-5 h-5" />
+                <span>Gather Water</span>
+              </button>
+            </TooltipTrigger>
+            {gatherTooltipText && <TooltipContent>{gatherTooltipText}</TooltipContent>}
+        </Tooltip>
     </div>
   );
 };

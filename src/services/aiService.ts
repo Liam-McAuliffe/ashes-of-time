@@ -24,6 +24,7 @@ const RETRY_DELAY_MS = 1500; // Wait 1.5 seconds between retries
 
 // 3. Create the function to call the backend API route
 export const fetchGameEvent = async (context: PromptContext): Promise<EventResponse> => {
+  console.log(context);
   let retries = 0;
   while (retries <= MAX_RETRIES) {
     try {

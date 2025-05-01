@@ -1,14 +1,20 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, useAnimationControls } from 'framer-motion';
+import { Crosshair } from 'lucide-react';
+import { StatusEffect } from '../../types/game'; // Import StatusEffect type
 
 interface HuntingMiniGameProps {
   onComplete: (success: boolean) => void; 
   difficulty?: number; // For future speed/timing adjustments
+  actorStatuses?: StatusEffect[]; // Rename playerStatuses to actorStatuses
+  actorId: string; // Add actorId
 }
 
 const HuntingMiniGame: React.FC<HuntingMiniGameProps> = ({
   onComplete,
   difficulty = 1,
+  actorStatuses = [], // Default to empty array
+  actorId,
 }) => {
   const controls = useAnimationControls();
   const scopeRef = useRef<HTMLDivElement>(null);
@@ -17,9 +23,13 @@ const HuntingMiniGame: React.FC<HuntingMiniGameProps> = ({
   const [isClicked, setIsClicked] = useState(false); // Prevent multiple clicks
 
   // --- Animation Configuration --- 
-  const pulseDuration = 1.5 / difficulty; // Faster pulse for higher difficulty
-  const targetScale = 0.3; // How small the target gets
-  const successWindow = 0.1; // Percentage of cycle considered a 'hit' (e.g., 10% around smallest point)
+  // Adjust base speed/timing based on Malnourished status
+  const isMalnourished = actorStatuses.includes('Malnourished');
+  const speedMultiplier = isMalnourished ? 1.15 : 1; // Malnourished makes it ~15% harder/faster feel
+  
+  const pulseDuration = (1.5 / difficulty) / speedMultiplier; // Faster pulse for higher difficulty or malnourished
+  const targetScale = 0.3;
+  const successWindow = 0.1 / speedMultiplier; // Malnourished reduces the success window slightly
 
   // --- Click/KeyPress Handling (MOVED UP) ---
   const handleClick = useCallback(() => { 
@@ -43,10 +53,12 @@ const HuntingMiniGame: React.FC<HuntingMiniGameProps> = ({
       }
     }
 
-    const successThreshold = targetScale * (1 + successWindow);
+    // Adjust success threshold slightly if malnourished, requiring more precision
+    const adjustedSuccessWindow = isMalnourished ? successWindow * 0.85 : successWindow; 
+    const successThreshold = targetScale * (1 + adjustedSuccessWindow);
     const isSuccess = currentScale <= successThreshold;
     
-    console.log(`Clicked! Target Scale: ${targetScale}, Current Scale: ${currentScale.toFixed(2)}, Success: ${isSuccess}`);
+    console.log(`Clicked! Target Scale: ${targetScale.toFixed(2)}, Current Scale: ${currentScale.toFixed(2)}, Success Threshold: ${successThreshold.toFixed(2)}, Malnourished: ${isMalnourished}, Success: ${isSuccess}`);
 
     if (isSuccess) {
       const foodGained = 5; 
@@ -55,7 +67,7 @@ const HuntingMiniGame: React.FC<HuntingMiniGameProps> = ({
       setMissed(true); 
       setResultMessage('Missed!');
     }
-  }, [isClicked, controls, targetScale, successWindow, onComplete, setResultMessage, setMissed]); // Added missing state setters to deps
+  }, [isClicked, controls, targetScale, successWindow, onComplete, setResultMessage, setMissed, isMalnourished]); // Added isMalnourished to deps
 
   // --- Effects ---
   // Animation Start Effect

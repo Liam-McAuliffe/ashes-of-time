@@ -11,6 +11,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@floating-ui/react": "^0.27.8",
     "@google/genai": "^0.8.0",
     "@google/generative-ai": "^0.24.1",
     "@reduxjs/toolkit": "^2.7.0",

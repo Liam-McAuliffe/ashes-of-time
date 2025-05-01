@@ -2,6 +2,7 @@ import React from 'react';
 import { Droplet, Utensils, Sun, Info, Droplets } from 'lucide-react';
 import { Survivor } from '../../types/game';
 import AnimatedNumber from '../ui/AnimatedNumber';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/Tooltip';
 
 interface ResourceDisplayProps {
   day: number;
@@ -33,7 +34,7 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
   };
 
   const livingSurvivorCount = survivors?.filter((s) => s.health > 0).length || 0;
-  const changeTooltip = 'Net resource change since the start of the previous day';
+  const changeTooltipText = 'Net resource change since the start of the previous day';
 
   return (
     <div className="w-full bg-stone/10 border border-olive/30 p-4 rounded-lg flex flex-col gap-3">
@@ -46,26 +47,41 @@ const ResourceDisplay: React.FC<ResourceDisplayProps> = ({
       </p>
 
       <div className="space-y-2">
-        <div className={`flex items-center justify-between ${getResourceClass(food)}`} title={changeTooltip}>
-          <div className="flex items-center gap-1.5 text-lg">
-            <Utensils className="text-rust" size={18} />
-            <span>Food:</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-semibold"><AnimatedNumber value={food} /></span> 
-            <span className="text-sm font-normal">{formatChange(foodChange)}</span>
-          </div>
-        </div>
-        <div className={`flex items-center justify-between ${getResourceClass(water)}`} title={changeTooltip}>
-          <div className="flex items-center gap-1.5 text-lg">
-            <Droplets className="text-cyan-600" size={18} />
-            <span>Water:</span>
-          </div>
-          <div className="flex items-baseline gap-1">
-            <span className="text-xl font-semibold"><AnimatedNumber value={water} /></span>
-            <span className="text-sm font-normal">{formatChange(waterChange)}</span>
-          </div>
-        </div>
+        <Tooltip placement="top">
+          <TooltipTrigger asChild>
+            <div className={`flex items-center justify-between ${getResourceClass(food)} cursor-help`}>
+              <div className="flex items-center gap-1.5 text-lg">
+                <Utensils className="text-rust" size={18} />
+                <span>Food:</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-semibold"><AnimatedNumber value={food} /></span> 
+                <span className="text-sm font-normal">{formatChange(foodChange)}</span>
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            {changeTooltipText}
+          </TooltipContent>
+        </Tooltip>
+        
+        <Tooltip placement="top">
+          <TooltipTrigger asChild>
+            <div className={`flex items-center justify-between ${getResourceClass(water)} cursor-help`}>
+              <div className="flex items-center gap-1.5 text-lg">
+                <Droplets className="text-cyan-600" size={18} />
+                <span>Water:</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-semibold"><AnimatedNumber value={water} /></span>
+                <span className="text-sm font-normal">{formatChange(waterChange)}</span>
+              </div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            {changeTooltipText}
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   );

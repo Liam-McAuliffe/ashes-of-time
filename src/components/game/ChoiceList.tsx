@@ -1,6 +1,7 @@
 import React from 'react';
 import { GameChoice } from '../../types/game';
 import { Utensils, Droplets } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/Tooltip';
 
 interface ChoiceListProps {
   choices: GameChoice[];
@@ -46,22 +47,34 @@ const ChoiceList: React.FC<ChoiceListProps> = ({
               {(choice.cost?.food > 0 || choice.cost?.water > 0) && (
                 <div className="flex items-center gap-3 text-sm flex-shrink-0">
                   {choice.cost.food > 0 && (
-                    <div 
-                      className={`flex items-center gap-1 ${currentFood < choice.cost.food ? 'text-red-600' : 'text-amber-700/90'}`}
-                      title={`${choice.cost.food} Food Cost`}
-                    >
-                      <Utensils className="w-4 h-4" />
-                      <span className="font-semibold">-{choice.cost.food}</span>
-                    </div>
+                    <Tooltip placement="top">
+                      <TooltipTrigger asChild>
+                        <div 
+                          className={`flex items-center gap-1 ${currentFood < choice.cost.food ? 'text-red-600' : 'text-amber-700/90'}`}
+                        >
+                          <Utensils className="w-4 h-4" />
+                          <span className="font-semibold">-{choice.cost.food}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {choice.cost.food} Food Cost
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                   {choice.cost.water > 0 && (
-                    <div 
-                      className={`flex items-center gap-1 ${currentWater < choice.cost.water ? 'text-red-600' : 'text-sky-700/90'}`}
-                      title={`${choice.cost.water} Water Cost`}
-                    >
-                      <Droplets className="w-4 h-4" />
-                      <span className="font-semibold">-{choice.cost.water}</span>
-                    </div>
+                    <Tooltip placement="top">
+                      <TooltipTrigger asChild>
+                        <div 
+                          className={`flex items-center gap-1 ${currentWater < choice.cost.water ? 'text-red-600' : 'text-sky-700/90'}`}
+                        >
+                          <Droplets className="w-4 h-4" />
+                          <span className="font-semibold">-{choice.cost.water}</span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {choice.cost.water} Water Cost
+                      </TooltipContent>
+                    </Tooltip>
                   )}
                 </div>
               )}
