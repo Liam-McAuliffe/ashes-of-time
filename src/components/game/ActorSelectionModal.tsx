@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Survivor, StatusEffect, statusEffectDescriptions } from '../../types/game';
 import { X } from 'lucide-react';
-import { Tooltip, TooltipTrigger, TooltipContent } from '../ui/Tooltip';
+import OptimizedTooltip from '../ui/OptimizedTooltip';
 import { getStatusColor } from '../../utils/gameLogic';
 
 interface ActorSelectionModalProps {
@@ -13,7 +13,77 @@ interface ActorSelectionModalProps {
   onCancel: () => void;
 }
 
-export const ActorSelectionModal: React.FC<ActorSelectionModalProps> = ({
+// Memoized survivor button component
+const SurvivorButton = memo(({ 
+  survivor, 
+  eligible, 
+  tooltipText, 
+  buttonClasses, 
+  onSelect 
+}: { 
+  survivor: Survivor, 
+  eligible: boolean, 
+  tooltipText: string | null,
+  buttonClasses: string,
+  onSelect: (id: string) => void
+}) => (
+  <div key={survivor.id}>
+    {!eligible && tooltipText ? (
+      <OptimizedTooltip content={tooltipText}>
+        <button
+          disabled={!eligible}
+          className={buttonClasses}
+        >
+          <div className="flex flex-col items-start">
+            <span className="font-medium text-charcoal">{survivor.name}</span>
+            <span className="text-xs text-rust">HP: {survivor.health}</span>
+          </div>
+          {survivor.statuses.length > 0 && (
+            <div className="flex flex-wrap gap-1 justify-end max-w-[50%]">
+              {survivor.statuses.map((status) => (
+                <OptimizedTooltip key={status} content={statusEffectDescriptions[status] || 'Unknown effect.'}>
+                  <span 
+                    className={`px-1.5 py-0.5 rounded-full text-xs font-medium cursor-default ${getStatusColor(status)}`}
+                  >
+                    {status}
+                  </span>
+                </OptimizedTooltip>
+              ))}
+            </div>
+          )}
+        </button>
+      </OptimizedTooltip>
+    ) : (
+      <button
+        onClick={() => eligible && onSelect(survivor.id)}
+        disabled={!eligible}
+        className={buttonClasses}
+      >
+        <div className="flex flex-col items-start">
+          <span className="font-medium text-charcoal">{survivor.name}</span>
+          <span className="text-xs text-rust">HP: {survivor.health}</span>
+        </div>
+        {survivor.statuses.length > 0 && (
+          <div className="flex flex-wrap gap-1 justify-end max-w-[50%]">
+            {survivor.statuses.map((status) => (
+              <OptimizedTooltip key={status} content={statusEffectDescriptions[status] || 'Unknown effect.'}>
+                <span 
+                  className={`px-1.5 py-0.5 rounded-full text-xs font-medium cursor-default ${getStatusColor(status)}`}
+                >
+                  {status}
+                </span>
+              </OptimizedTooltip>
+            ))}
+          </div>
+        )}
+      </button>
+    )}
+  </div>
+));
+
+SurvivorButton.displayName = 'SurvivorButton';
+
+export const ActorSelectionModal: React.FC<ActorSelectionModalProps> = memo(({
   survivors,
   actionType,
   onSelect,
@@ -59,39 +129,14 @@ export const ActorSelectionModal: React.FC<ActorSelectionModalProps> = ({
             `;
 
             return (
-              <Tooltip key={survivor.id} placement="left" open={!eligible ? undefined : false}>
-                <TooltipTrigger asChild>
-                    <button
-                    onClick={() => eligible && onSelect(survivor.id)}
-                    disabled={!eligible}
-                    className={buttonClasses}
-                    >
-                        <div className="flex flex-col items-start">
-                            <span className="font-medium text-charcoal">{survivor.name}</span>
-                            <span className="text-xs text-rust">HP: {survivor.health}</span>
-                        </div>
-                        {survivor.statuses.length > 0 && (
-                            <div className="flex flex-wrap gap-1 justify-end max-w-[50%]">
-                                {survivor.statuses.map((status) => (
-                                <Tooltip key={status} placement="top">
-                                    <TooltipTrigger asChild>
-                                        <span 
-                                        className={`px-1.5 py-0.5 rounded-full text-xs font-medium cursor-default ${getStatusColor(status)}`}
-                                        >
-                                        {status}
-                                        </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        {statusEffectDescriptions[status] || 'Unknown effect.'}
-                                    </TooltipContent>
-                                </Tooltip>
-                                ))}
-                            </div>
-                        )}
-                    </button>
-                </TooltipTrigger>
-                {tooltipText && <TooltipContent>{tooltipText}</TooltipContent>}
-              </Tooltip>
+              <SurvivorButton
+                key={survivor.id}
+                survivor={survivor}
+                eligible={eligible}
+                tooltipText={tooltipText}
+                buttonClasses={buttonClasses}
+                onSelect={onSelect}
+              />
             );
           })}
         </div>
@@ -104,4 +149,6 @@ export const ActorSelectionModal: React.FC<ActorSelectionModalProps> = ({
       </div>
     </div>
   );
-}; 
+});
+
+ActorSelectionModal.displayName = 'ActorSelectionModal';

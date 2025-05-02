@@ -20,6 +20,11 @@ import { RootState } from '../index';
 
 const MAX_HISTORY_LENGTH = 3;
 
+/**
+ * Initial game state
+ * 
+ * Defines the starting values for all game state properties
+ */
 const initialState: GameState = {
   day: 1,
   food: 20,
@@ -44,6 +49,12 @@ const initialState: GameState = {
   gatherPerformedToday: false,
 };
 
+/**
+ * Async thunk for fetching a new game event
+ * 
+ * Uses the AI service to generate a new event with choices based on the current game state.
+ * Sets loading state while fetching and handles the response or error.
+ */
 export const fetchEvent = createAsyncThunk<
   EventResponse,
   void,
@@ -71,6 +82,15 @@ const gameSlice = createSlice({
   name: 'game',
   initialState,
   reducers: {
+    /**
+     * Applies the effects of a player's choice
+     * 
+     * Processes resource costs, survivor changes, and advances the game state.
+     * If a new companion is found, it triggers the naming flow instead of advancing.
+     * 
+     * @param {GameState} state - Current game state
+     * @param {PayloadAction<{ choice: GameChoice }>} action - The choice being applied
+     */
     applyChoice: (state, action: PayloadAction<{ choice: GameChoice }>) => {
       const { choice } = action.payload;
       const { food: startingFood, water: startingWater, day: currentDay, survivors: survivorsBefore } = state;
@@ -132,6 +152,16 @@ const gameSlice = createSlice({
         proceedToNextDay(state, startingFood, startingWater, tempFood, tempWater, survivorsAfterChoice, currentDay);
       }
     },
+
+    /**
+     * Resolves the outcome of a hunting mini-game
+     * 
+     * Applies the food gain and health cost to the hunter,
+     * and marks hunting as performed for the day.
+     * 
+     * @param {GameState} state - Current game state
+     * @param {PayloadAction<HuntResult>} action - The hunting result
+     */
     resolveHunting: (state, action: PayloadAction<HuntResult>) => {
       const { hunterId, foodGained, outcomeText } = action.payload;
       const { food: startingFood, water: startingWater, survivors: survivorsBefore } = state;
@@ -158,6 +188,16 @@ const gameSlice = createSlice({
       state.huntPerformedToday = true;
       state.isLoading = false;
     },
+
+    /**
+     * Resolves the outcome of a water gathering mini-game
+     * 
+     * Applies the water gain and health cost to the gatherer,
+     * and marks gathering as performed for the day.
+     * 
+     * @param {GameState} state - Current game state
+     * @param {PayloadAction<GatherResult>} action - The gathering result
+     */
     resolveGatherWater: (state, action: PayloadAction<GatherResult>) => {
       const { gathererId, waterGained, outcomeText } = action.payload;
       const { food: startingFood, water: startingWater, survivors: survivorsBefore } = state;
@@ -184,6 +224,16 @@ const gameSlice = createSlice({
       state.gatherPerformedToday = true;
       state.isLoading = false;
     },
+
+    /**
+     * Completes the companion naming process
+     * 
+     * Applies the chosen name to a newly acquired companion and
+     * advances to the next day.
+     * 
+     * @param {GameState} state - Current game state
+     * @param {PayloadAction<{ survivorId: string, newName: string }>} action - Naming details
+     */
     finishNamingCompanion: (
       state,
       action: PayloadAction<{ survivorId: string; newName: string }>

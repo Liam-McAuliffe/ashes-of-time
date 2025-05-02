@@ -6,3 +6,56 @@
   --color-olive: #868173; /* Muted Olive/Gray-Green - Good for secondary text, borders, subtle backgrounds */
   --color-stone: #eceae8; /* Light Gray/Off-White - Good for main backgrounds, card backgrounds */
 }
+
+@keyframes wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  50%, 100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+@layer utilities {
+  .animate-wave {
+    animation: wave 1.5s linear infinite;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 1s ease-out forwards;
+  }
+  
+  .animate-glitch {
+    animation: glitch 0.2s ease-in-out;
+  }
+}

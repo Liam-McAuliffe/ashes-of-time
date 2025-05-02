@@ -295,7 +295,8 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
     * **CRITICAL: You MUST directly reference and continue the narrative from the previous day's outcome above.** 
     * If new survivors or companions were introduced, they MUST be mentioned in your new event.
     * The event should feel like a natural progression or consequence of the recent history.
-    * COMPANIONS ARE THE PETS AND HELPERS OF THE SURVIVORS. THEY ARE NOT HUMAN!
+    * COMPANIONS ARE ANIMALS OR PETS BELONGING TO SURVIVORS, NOT HUMAN CHARACTERS!
+    * IMPORTANT: Animals like wolves, dogs, cats, etc. should ALWAYS be added as companions using the addCompanion format, NEVER as new survivors!
     * **This event MUST be distinct** from previous events but maintain STRONG CONTINUITY with the previous outcome.
     * Any statuses (injured, sick, etc.) from previous events should be reflected in your narrative.
     * Consider the current day number and how it might affect the narrative.
@@ -313,6 +314,23 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
         * Use \`removeStatus\` to remove ONE specific status OR use \`"removeStatus": "all_negative"\` to clear all harmful statuses (use sparingly, e.g., for powerful medicine or long rest).
         * Example: \`{ "target": "You", "healthChange": -10, "addStatus": "Injured (Bleeding)" }\`
         * Example: \`{ "target": "Maya", "removeStatus": "Fever" }\`
+        * NOTE: "Companion Bond" status should ONLY be used for human survivors who bond with another survivor, NOT for animal companions. For animal companions, use the "addCompanion" format!
+        * **STATUS EFFECT EXPLANATIONS:**
+            * Dehydrated: –10% action success; +1 Water consumption per day
+            * Malnourished: –10% movement/reaction speed; small HP drain
+            * Injured (Bleeding): 5 HP immediate damage + passive HP loss until treated
+            * Exhausted: –20% chance of critical failure; limit to one action per day
+            * Fever: –15 Max HP; 25% chance to skip turn (cannot take action)
+            * Infected Wound: Steady HP loss until disinfected with medicine
+            * Hypothermia: Passive HP loss in cold; decreased action effectiveness
+            * Heatstroke: Passive HP loss in heat; increased water consumption
+            * Poisoned: Substantial HP drain until healed
+            * Broken Limb: Cannot Hunt or perform strenuous actions
+            * Companion Bond: +5 HP regen per day when with companion, but double resource cost
+            * Cold: Slightly increased chance of developing sickness
+            * Sick: Moderate passive HP loss; reduced action effectiveness
+            * Hopeful: +5% action success chance
+            * Scared: -10% action success chance
     * **New Survivor/Companion Guidance:**
         * Occasionally (around a 5-10% chance per day, increasing slightly with days passed), consider generating a choice that *could* lead to encountering a potential new survivor (if count < 5) or a potential companion.
         * If a survivor was mentioned in the previous day but not yet added, prioritize a choice that allows recruiting them.
@@ -320,8 +338,11 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
         * If adding a new survivor, try to balance genders and use varied, somewhat common names.
         * If adding a companion, suggest a type (e.g., dog, cat, robot, drone) and a generic initial name.
         * MUST ENCOUNTER A COMPANION OR A SURVIVOR BY DAY 5!
+        * COMPANIONS ARE ANIMALS OR PETS BELONGING TO SURVIVORS, NOT HUMAN CHARACTERS!
+        * IMPORTANT: Animals like wolves, dogs, cats, etc. should ALWAYS be added as companions using the addCompanion format, NEVER as new survivors!
         * REMEMBER TO ADD OTHER PEOPLE TO THE PARTY. THEY ARE NOT ALONE! THIS MAKES IT MORE ENGAGING FOR THE USER!
-    * **ADDING NEW SURVIVORS:** To add a *new* survivor via choice effects, include an object within the \`survivorChanges\` array with the property \`"new": true\`, \`"name": "SurvivorName"\` and \`"health": initialHealthValue\`. Include initial statuses if appropriate, e.g., \`"statuses": ["Exhausted", "Malnourished"]\`
+    * **ADDING NEW SURVIVORS:** To add a *new human survivor* via choice effects, include an object within the \`survivorChanges\` array with the property \`"new": true\`, \`"name": "SurvivorName"\` and \`"health": initialHealthValue\`. Include initial statuses if appropriate, e.g., \`"statuses": ["Exhausted", "Malnourished"]\`
+    * **ADDING COMPANIONS:** To add a *companion* (like an animal or pet) to a survivor, use \`"addCompanion": { "type": "animal_type", "name": "CompanionName" }\` format. Do NOT use "new": true for companions!
     * **DESCRIPTIVE OUTCOMES:** For each choice, the "outcome" field MUST contain a **detailed description (1-2 sentences)** summarizing exactly *what happened* as a result of taking that action.
 
 3.  **Output Format:**
@@ -343,8 +364,8 @@ The goal is to create engaging, challenging, and contextually relevant scenarios
             // { "target": "random", "addStatus": "Hypothermia" },
             // { "target": "${survivorNames.length > 0 ? survivorNames[0] : 'player'}", "removeStatus": "Sick" },
             // { "target": "all", "removeStatus": "Scared", "addStatus": "Hopeful" }, // Add/Remove in separate objects if targeting same person
-            // { "target": "new", "new": true, "name": "Jax", "health": 80, "statuses": ["Malnourished"] }, // Added explicit 'new: true'
-            // { "target": "player", "addCompanion": { "type": "dog", "name": "Stray Dog" } },
+            // { "target": "new", "new": true, "name": "Jax", "health": 80, "statuses": ["Malnourished"] }, // This adds a NEW HUMAN SURVIVOR
+            // { "target": "player", "addCompanion": { "type": "dog", "name": "Rusty" } }, // This adds a PET/ANIMAL companion to player
             // { "target": "${survivorNames.length > 1 ? survivorNames[1] : 'player'}", "removeCompanion": true }
         ]
         },

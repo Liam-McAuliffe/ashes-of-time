@@ -8,13 +8,26 @@ const negativeStatuses: StatusEffect[] = [
   'Cold', 'Sick', 'Scared'
 ];
 
-// Export the helper function
+/**
+ * Returns the appropriate CSS class for styling a status effect based on its type
+ * 
+ * @param {StatusEffect} status - The status effect to get the color for
+ * @returns {string} CSS class string for styling the status
+ */
 export const getStatusColor = (status: StatusEffect): string => {
   if (positiveStatuses.includes(status)) return 'bg-green-600/70 text-green-100';
   if (negativeStatuses.includes(status)) return 'bg-red-700/70 text-red-100';
   return 'bg-gray-500/70 text-gray-100'; // Default/neutral
 };
 
+/**
+ * Checks if game over conditions have been met
+ * 
+ * @param {number} food - Current food amount
+ * @param {number} water - Current water amount
+ * @param {Survivor[]} survivors - Array of survivors
+ * @returns {string | null} Game over message if game is over, null otherwise
+ */
 export function checkGameOver(
   food: number,
   water: number,
@@ -29,6 +42,15 @@ export function checkGameOver(
   return null;
 }
 
+/**
+ * Applies daily passive effects from status conditions to survivors
+ * 
+ * This includes health regeneration or damage from various status effects,
+ * such as bleeding, fever, or healing from companions.
+ * 
+ * @param {Survivor[]} survivors - Array of survivors to apply effects to
+ * @returns {Survivor[]} Updated array of survivors with applied effects
+ */
 export function applyDailyStatusEffects(survivors: Survivor[]): Survivor[] {
   return survivors.map((survivor) => {
     if (survivor.health <= 0) return survivor; // Skip dead survivors
@@ -58,6 +80,14 @@ export function applyDailyStatusEffects(survivors: Survivor[]): Survivor[] {
       newHealth += survivor.companion.bonuses.healing_rate;
     }
 
+    // Status transitions/progressions
+    // Small chance for Cold to progress to something worse
+    if (currentStatuses.includes('Cold') && Math.random() < 0.15) {
+      if (!currentStatuses.includes('Sick')) {
+        currentStatuses.push('Sick');
+      }
+    }
+
     // Clamp health between 0 and current maxHealth
     newHealth = Math.max(0, Math.min(maxHealth, newHealth));
 
@@ -72,6 +102,19 @@ export function applyDailyStatusEffects(survivors: Survivor[]): Survivor[] {
   });
 }
 
+/**
+ * Applies survivor changes from events or actions
+ * 
+ * This function handles all survivor modifications including:
+ * - Health changes
+ * - Adding/removing status effects
+ * - Adding/removing companions
+ * - Creating new survivors
+ * 
+ * @param {Survivor[]} survivors - Array of survivors to modify
+ * @param {SurvivorChange[]} changes - Array of changes to apply
+ * @returns {Survivor[]} Updated array of survivors with changes applied
+ */
 export function applySurvivorChanges(
   survivors: Survivor[],
   changes: SurvivorChange[]
@@ -106,7 +149,7 @@ export function applySurvivorChanges(
     let targets: Survivor[] = [];
     
     if (change.target === 'player') {
-      targets = tempSurvivors.filter((s) => s.id === 'player');
+      targets = tempSurvivors.filter((s) => s.id === 'player' || s.isPlayer === true);
     } else if (change.target === 'random') {
       const living = tempSurvivors.filter((s) => s.health > 0);
       if (living.length > 0) {
@@ -185,6 +228,15 @@ export function applySurvivorChanges(
   return tempSurvivors;
 }
 
+/**
+ * Calculates daily resource consumption based on survivors
+ * 
+ * Each living survivor consumes a base amount of food and water per day,
+ * with modifications from status effects.
+ * 
+ * @param {Survivor[]} survivors - Array of survivors
+ * @returns {{ foodConsumed: number, waterConsumed: number }} Total resources consumed
+ */
 export function calculateDailyConsumption(survivors: Survivor[]): {
   foodConsumed: number;
   waterConsumed: number;
@@ -200,7 +252,6 @@ export function calculateDailyConsumption(survivors: Survivor[]): {
       // Apply status effects on consumption rates
       if (survivor.statuses.includes('Dehydrated')) waterRate += 1;
       if (survivor.statuses.includes('Heatstroke')) waterRate += 1;
-      // Removed Hypothermia affecting water, as per description
       // Companion Bond doubles consumption for the survivor
       if (survivor.statuses.includes('Companion Bond') && survivor.companion) {
          foodRate *= 2;
@@ -216,6 +267,55 @@ export function calculateDailyConsumption(survivors: Survivor[]): {
     foodConsumed: Math.max(0, Math.round(totalFoodConsumed)), // Ensure non-negative whole numbers
     waterConsumed: Math.max(0, Math.round(totalWaterConsumed)),
   };
+}
+
+/**
+ * Calculates a modified success chance based on status effects
+ * 
+ * @param survivor - The survivor performing the action
+ * @param baseChance - The base success chance (0-1)
+ * @returns Modified success chance after applying status effects
+ */
+export function calculateStatusEffectModifiedChance(
+  survivor: Survivor,
+  baseChance: number
+): number {
+  let modifiedChance = baseChance;
+  
+  // Apply negative status effects
+  if (survivor.statuses.includes('Dehydrated')) modifiedChance -= 0.1; // -10% success
+  if (survivor.statuses.includes('Malnourished')) modifiedChance -= 0.1; // -10% movement/reaction
+  if (survivor.statuses.includes('Exhausted')) modifiedChance -= 0.2; // -20% critical failure chance
+  if (survivor.statuses.includes('Fever')) {
+    // 25% chance to skip turn handled elsewhere
+    modifiedChance -= 0.15; // General penalty
+  }
+  if (survivor.statuses.includes('Hypothermia')) modifiedChance -= 0.15; // Actions less effective
+  if (survivor.statuses.includes('Sick')) modifiedChance -= 0.1; // Reduced effectiveness
+  if (survivor.statuses.includes('Scared')) modifiedChance -= 0.1; // -10% action success
+  
+  // Apply positive status effects
+  if (survivor.statuses.includes('Hopeful')) modifiedChance += 0.05; // +5% action success
+  
+  // Clamp to valid range (0-1)
+  return Math.max(0.1, Math.min(1, modifiedChance)); // Minimum 10% chance
+}
+
+/**
+ * Determines if a status effect causes an action to be skipped
+ * 
+ * @param survivor - The survivor attempting to perform an action
+ * @returns Boolean indicating if the action should be skipped
+ */
+export function shouldSkipActionDueToStatus(survivor: Survivor): boolean {
+  // Fever has a 25% chance of skipping a turn
+  if (survivor.statuses.includes('Fever') && Math.random() < 0.25) {
+    return true;
+  }
+  
+  // Future: Add other statuses that might cause skipped actions
+  
+  return false;
 }
 
 // Redefine result interfaces to exclude healthChange
@@ -240,11 +340,23 @@ export function calculateHuntingOutcome(
   const minReactionTime = 200;
   const maxReactionTime = 1000;
 
+  // Check if we should skip action due to status effect
+  if (shouldSkipActionDueToStatus(hunter)) {
+    return {
+      hunterId: hunter.id,
+      foodGained: 0,
+      outcomeText: `${hunter.name} was too ill to focus and failed to hunt effectively.`
+    };
+  }
+
   const normalizedTime = Math.max(
     0,
     Math.min(1, (reactionTimeMs - minReactionTime) / (maxReactionTime - minReactionTime))
   );
-  const successFactor = 1 - normalizedTime;
+  let successFactor = 1 - normalizedTime;
+  
+  // Apply status effect modifiers to success factor
+  successFactor = calculateStatusEffectModifiedChance(hunter, successFactor);
 
   // Apply companion hunting bonus if any
   const huntingBonus = hunter.companion?.bonuses?.hunting_yield || 0; // Use hunting_yield
@@ -265,12 +377,28 @@ export function calculateHuntingOutcome(
   } else if (successFactor >= 0.2) {
     outcomeText = `${hunter.name} barely caught anything, only finding ${foodGained} food.`;
   } else {
-    foodGained = 0; // Ensure 0 food on complete failure
-    outcomeText = `${hunter.name} failed to catch anything useful.`;
+    foodGained = Math.max(0, foodGained); // Ensure no negative food
+    outcomeText = `${hunter.name} struggled to hunt effectively, finding only ${foodGained} food.`;
+  }
+
+  // Add status effect explanations to outcome text if they affected the result
+  const statusAffectedOutcome = [];
+  if (hunter.statuses.includes('Scared')) {
+    statusAffectedOutcome.push("fear made focusing difficult");
+  }
+  if (hunter.statuses.includes('Exhausted')) {
+    statusAffectedOutcome.push("exhaustion slowed reactions");
+  }
+  if (hunter.statuses.includes('Hypothermia')) {
+    statusAffectedOutcome.push("cold hands affected aim");
+  }
+  
+  if (statusAffectedOutcome.length > 0) {
+    outcomeText += ` The ${statusAffectedOutcome.join(" and ")}.`;
   }
 
   if (huntingBonus > 0) {
-    outcomeText += ` Your companion's expertise yielded more food.`; // Adjusted text slightly
+    outcomeText += ` Your companion's expertise yielded more food.`;
   }
 
   return {
@@ -285,38 +413,63 @@ export function calculateGatherWaterOutcome(
 ): SimplifiedGatherResult { // Updated return type
   const baseWater = 2;
   const maxWater = 6;
-  const successFactor = Math.random();
+  
+  // Check if we should skip action due to status effect
+  if (shouldSkipActionDueToStatus(gatherer)) {
+    return {
+      gathererId: gatherer.id,
+      waterGained: 0,
+      outcomeText: `${gatherer.name} was too ill to focus and failed to gather any water.`
+    };
+  }
+  
+  // Random base chance, will be modified by status effects
+  let successFactor = Math.random();
+  
+  // Apply status effect modifiers
+  successFactor = calculateStatusEffectModifiedChance(gatherer, successFactor);
 
   // Apply companion gathering bonus if any
-  // For now, let's assume gathering_success_chance affects the random factor
   const gatheringBonusChance = gatherer.companion?.bonuses?.gathering_success_chance || 0; 
   const clampedSuccessFactor = Math.min(1, successFactor * (1 + gatheringBonusChance / 100)); // Increase chance of higher random number
-  // Clamp successFactor just in case
-
-  // Consider if there should be a yield bonus too? For now, just success chance.
-  const waterMultiplier = 1; // No yield multiplier for now
 
   let waterGained = Math.round(
-    (baseWater + (maxWater - baseWater) * clampedSuccessFactor) * waterMultiplier
+    (baseWater + (maxWater - baseWater) * clampedSuccessFactor)
   );
 
   // Determine outcome text based on success
   let outcomeText = '';
 
-  if (successFactor >= 0.8) {
+  if (clampedSuccessFactor >= 0.8) {
     waterGained += 2;
     outcomeText = `${gatherer.name} found a pristine water source! Gathered ${waterGained} water.`;
-  } else if (successFactor >= 0.5) {
+  } else if (clampedSuccessFactor >= 0.5) {
     outcomeText = `${gatherer.name} gathered some water successfully. Gathered ${waterGained} water.`;
-  } else if (successFactor >= 0.2) {
+  } else if (clampedSuccessFactor >= 0.2) {
     outcomeText = `${gatherer.name} found little water, only managing ${waterGained}.`;
   } else {
-    waterGained = 0; // Ensure 0 water on complete failure
-    outcomeText = `${gatherer.name} found no clean water sources nearby.`;
+    waterGained = Math.max(0, waterGained); // Ensure no negative water
+    outcomeText = `${gatherer.name} struggled to find clean water, collecting only ${waterGained}.`;
+  }
+
+  // Add status effect explanations to outcome text if they affected the result
+  const statusAffectedOutcome = [];
+  if (gatherer.statuses.includes('Dehydrated')) {
+    statusAffectedOutcome.push("thirst made it hard to focus");
+  }
+  if (gatherer.statuses.includes('Exhausted')) {
+    statusAffectedOutcome.push("exhaustion slowed progress");
+  }
+  if (gatherer.statuses.includes('Heatstroke')) {
+    statusAffectedOutcome.push("the heat was overwhelming");
+  }
+  
+  if (statusAffectedOutcome.length > 0) {
+    outcomeText += ` The ${statusAffectedOutcome.join(" and ")}.`;
   }
 
   if (gatheringBonusChance > 0) {
-    outcomeText += ` Your companion helped find a better spot.`; // Adjusted text slightly
+    outcomeText += ` Your companion helped find a better spot.`;
   }
 
   return {

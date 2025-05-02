@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, createContext, useContext, cloneElement, useRef, isValidElement } from 'react';
+import React, { useState, useRef, isValidElement, useEffect } from 'react';
 import { 
   useFloating, 
   autoUpdate, 
@@ -17,7 +17,9 @@ import {
   Placement 
 } from '@floating-ui/react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTooltip } from '../../context/TooltipContext';
 
+// For backward compatibility with existing code
 interface TooltipOptions {
   initialOpen?: boolean;
   placement?: Placement;
@@ -25,24 +27,12 @@ interface TooltipOptions {
   onOpenChange?: (open: boolean) => void;
 }
 
-interface TooltipContextValue extends TooltipOptions {
-  setOpen: (open: boolean) => void;
-  refs: ReturnType<typeof useFloating>['refs'];
-  context: ReturnType<typeof useFloating>['context'];
-  floatingStyles: ReturnType<typeof useFloating>['floatingStyles'];
-  getReferenceProps: ReturnType<typeof useInteractions>['getReferenceProps'];
-  getFloatingProps: ReturnType<typeof useInteractions>['getFloatingProps'];
-}
+// Memoize any children to avoid re-renders
+const MemoChild = React.memo(({ children }: { children: React.ReactNode }) => 
+  <>{children}</>
+);
 
-const TooltipContext = createContext<TooltipContextValue | null>(null);
-
-const useTooltipContext = () => {
-  const context = useContext(TooltipContext);
-  if (context == null) {
-    throw new Error('Tooltip components must be wrapped in <Tooltip>');
-  }
-  return context;
-};
+MemoChild.displayName = 'MemoChild';
 
 export function Tooltip({
   children,
@@ -54,63 +44,108 @@ export function Tooltip({
   children: React.ReactNode;
 } & TooltipOptions) {
   const [uncontrolledOpen, setUncontrolledOpen] = useState(initialOpen);
-
   const open = controlledOpen ?? uncontrolledOpen;
   const setOpen = setControlledOpen ?? setUncontrolledOpen;
 
-  const data = useFloating({
-    placement,
+  // Create a context-like structure but with props flowing down instead
+  // This maintains API compatibility with existing code
+  const contextValue = {
     open,
-    onOpenChange: setOpen,
-    whileElementsMounted: (reference, floating, update) => 
-      autoUpdate(reference, floating, update, { animationFrame: true }),
-    middleware: [offset(5), flip(), shift({ padding: 8 })],
-  });
-
-  const context = data.context;
-
-  const hover = useHover(context, { move: false, delay: { open: 100, close: 0 } });
-  const focus = useFocus(context);
-  const dismiss = useDismiss(context);
-  const role = useRole(context, { role: 'tooltip' });
-
-  const interactions = useInteractions([hover, focus, dismiss, role]);
-
-  const value = useMemo(
-    () => ({
-      open,
-      setOpen,
-      ...interactions,
-      ...data,
-      context, // Ensure context is passed through
-    }),
-    [open, setOpen, interactions, data, context]
-  );
+    setOpen,
+    placement,
+  };
 
   return (
-    <TooltipContext.Provider value={value}>
-      {children}
+    <TooltipContext.Provider value={contextValue}>
+      {/* Use React's memo to prevent unnecessary re-renders of children */}
+      <MemoChild>{children}</MemoChild>
     </TooltipContext.Provider>
   );
 }
+
+// This context is just for backward compatibility
+const TooltipContext = React.createContext<{
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  placement: Placement;
+} | null>(null);
+
+const useTooltipContext = () => {
+  const context = React.useContext(TooltipContext);
+  if (context == null) {
+    throw new Error('Tooltip components must be wrapped in <Tooltip>');
+  }
+  return context;
+};
 
 export const TooltipTrigger = React.forwardRef<
   HTMLElement,
   React.HTMLProps<HTMLElement> & { asChild?: boolean }
 >(function TooltipTrigger({ children, asChild = false, ...props }, propRef) {
-  const context = useTooltipContext();
+  const { open, setOpen } = useTooltipContext();
   const childrenRef = (children as any).ref;
-  const ref = useMergeRefs([context.refs.setReference, propRef, childrenRef]);
+  const mergedRef = useMergeRefs([propRef, childrenRef]);
+  
+  // Using the context-based tooltip for better performance
+  const { showTooltip, hideTooltip } = useTooltip();
+  const elementRef = useRef<HTMLElement | null>(null);
+
+  const handleRef = (element: HTMLElement | null) => {
+    if (typeof mergedRef === 'function') {
+      mergedRef(element);
+    }
+    elementRef.current = element;
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+    if (elementRef.current) {
+      const rect = elementRef.current.getBoundingClientRect();
+      const x = rect.left + rect.width / 2;
+      const y = rect.top;
+      
+      // We'll capture the content from the closest TooltipContent and pass it
+      const content = document.querySelector('[data-tooltip-content="true"]')?.innerHTML;
+      if (content) {
+        showTooltip(<div dangerouslySetInnerHTML={{ __html: content }} />, x, y);
+      }
+      
+      setOpen(true);
+    }
+    if (props.onMouseEnter) {
+      props.onMouseEnter(e);
+    }
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+    hideTooltip();
+    setOpen(false);
+    if (props.onMouseLeave) {
+      props.onMouseLeave(e);
+    }
+  };
 
   if (asChild && isValidElement(children)) {
-    return cloneElement(
+    return React.cloneElement(
       children,
-      context.getReferenceProps({ ...props, ...children.props, 'data-state': context.open ? 'open' : 'closed', ref })
+      {
+        ref: handleRef, 
+        onMouseEnter: handleMouseEnter,
+        onMouseLeave: handleMouseLeave,
+        ...props,
+        ...children.props, 
+        'data-state': open ? 'open' : 'closed'
+      }
     );
   }
 
   return (
-    <span ref={ref} {...context.getReferenceProps(props)} data-state={context.open ? 'open' : 'closed'}>
+    <span 
+      ref={handleRef} 
+      onMouseEnter={handleMouseEnter} 
+      onMouseLeave={handleMouseLeave}
+      {...props} 
+      data-state={open ? 'open' : 'closed'}
+    >
       {children}
     </span>
   );
@@ -120,25 +155,13 @@ export const TooltipContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLProps<HTMLDivElement>
 >(function TooltipContent({ style, ...props }, propRef) {
-  const context = useTooltipContext();
-  const ref = useMergeRefs([context.refs.setFloating, propRef]);
-
-  // console.log('Floating Styles:', context.floatingStyles); // Keep log for now
-  
-  // Render directly without Portal or AnimatePresence
-  if (!context.open) return null;
-
+  // Hidden div to store content for the optimized tooltip
   return (
-    <div
-      ref={ref}
-      style={{
-        ...context.floatingStyles,
-        ...style,
-      }}
-      {...context.getFloatingProps(props)}
-      className="z-50 rounded bg-charcoal/90 px-2.5 py-1.5 text-sm text-stone shadow-md backdrop-blur-sm"
-    >
-      {props.children}
-    </div>
+    <div 
+      style={{ display: 'none' }} 
+      ref={propRef} 
+      data-tooltip-content="true"
+      {...props}
+    />
   );
 }); 

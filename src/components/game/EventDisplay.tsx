@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
+/**
+ * Props for the EventDisplay component
+ * 
+ * @interface EventDisplayProps
+ * @property {string} text - The main event text to display
+ * @property {boolean} isLoading - Whether the event is currently loading
+ * @property {string | null} error - Error message to display, if any
+ * @property {string} lastOutcome - The outcome of the previous event/choice
+ */
 interface EventDisplayProps {
   text: string;
   isLoading: boolean;
@@ -8,7 +17,16 @@ interface EventDisplayProps {
   lastOutcome: string;
 }
 
-const EventDisplay: React.FC<EventDisplayProps> = ({
+/**
+ * Component that displays the current event text, loading state, or error
+ * 
+ * This component is memoized to prevent unnecessary re-renders when other parts
+ * of the application state change but the event information remains the same.
+ * 
+ * @param {EventDisplayProps} props - The component props
+ * @returns {React.ReactElement} The rendered component
+ */
+const EventDisplay: React.FC<EventDisplayProps> = memo(({
   text,
   isLoading,
   error,
@@ -41,6 +59,8 @@ const EventDisplay: React.FC<EventDisplayProps> = ({
       </div>
     </div>
   );
-};
+});
+
+EventDisplay.displayName = 'EventDisplay';
 
 export default EventDisplay; 

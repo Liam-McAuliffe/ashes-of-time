@@ -45,6 +45,14 @@ export interface GameChoice {
   // Removed the 'effects' nesting
   foodChange?: number; // Added (optional)
   waterChange?: number; // Added (optional)
+  resourceChanges?: {  // Add support for advanced resources
+    medicine?: number;
+    scrap?: number;
+    fuel?: number;
+    ammunition?: number;
+    tools?: number;
+    clothing?: number;
+  };
   survivorChanges?: SurvivorChange[]; // Moved from effects (optional)
 }
 
@@ -79,6 +87,19 @@ export interface GameState {
   // Add flags for daily actions
   huntPerformedToday: boolean;
   gatherPerformedToday: boolean;
+  // New properties for enhanced mechanics
+  playtime: number; // Total game playtime in seconds
+  resources: ResourceStore; // Enhanced resource system
+  resourceDependencies?: Record<string, {
+    requirement: string;
+    minimumAmount: number;
+    bonusPerUnit?: number;
+    effect?: string;
+  }>;
+  eventChains: EventChain[]; // Tracks active event chains
+  discoveredLocations: string[]; // List of discovered location IDs
+  difficultyLevel: string; // Current difficulty level
+  adaptiveDifficultyScore: number; // Score for adaptive difficulty (0-100)
 }
 
 export interface HuntResult {
@@ -128,4 +149,46 @@ export const statusEffectDescriptions: Record<StatusEffect, string> = {
   'Sick': 'Moderate passive HP loss; reduced effectiveness.',
   'Hopeful': '+5% action success chance.',
   'Scared': '-10% action success chance.',
-}; 
+};
+
+// Enhanced resource types
+export interface ResourceStore {
+  // Core survival resources
+  food: number;
+  water: number;
+  // Advanced resources
+  medicine: number;
+  scrap: number;
+  fuel: number;
+  ammunition: number;
+  // Craftable resources
+  tools: number;
+  clothing: number;
+  // Resource limits
+  foodCapacity: number;
+  waterCapacity: number;
+  medicineCapacity: number;
+  scrapCapacity: number;
+  fuelCapacity: number;
+  ammunitionCapacity: number;
+}
+
+// Event chain system to create multi-day events
+export interface EventChain {
+  id: string;
+  name: string;
+  type: EventChainType;
+  currentStep: number;
+  totalSteps: number;
+  expires: number | null; // Day when this chain expires, null = no expiration
+  data: Record<string, any>; // Custom data for this chain
+  completed: boolean;
+}
+
+export type EventChainType = 
+  | 'story'  // Main story events
+  | 'quest'  // Side quests
+  | 'crisis' // Time-sensitive challenges
+  | 'character' // Character development
+  | 'location' // Location exploration
+  | 'resource'; // Resource gathering/management 

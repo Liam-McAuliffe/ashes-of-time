@@ -1,4 +1,5 @@
 import type { GameState, GameChoice, Survivor, Companion, EventHistoryEntry } from '../types/game';
+import { withMiddleware } from './middleware/aiServiceMiddleware';
 
 // 1. Define the data structure we send TO the backend API
 // We only need a subset of the full GameState
@@ -22,9 +23,14 @@ export interface EventResponse {
 const MAX_RETRIES = 2; // Try the initial call + 2 retries
 const RETRY_DELAY_MS = 1500; // Wait 1.5 seconds between retries
 
-// 3. Create the function to call the backend API route
-export const fetchGameEvent = async (context: PromptContext): Promise<EventResponse> => {
-  console.log(context);
+/**
+ * Raw implementation of the fetch event function
+ * 
+ * @param context - The prompt context to send to the API
+ * @returns Promise with the event response
+ */
+const fetchEventRaw = async (context: PromptContext): Promise<EventResponse> => {
+  console.log('Sending API request with context:', context);
   let retries = 0;
   while (retries <= MAX_RETRIES) {
     try {
@@ -32,6 +38,7 @@ export const fetchGameEvent = async (context: PromptContext): Promise<EventRespo
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'X-Request-Token': `${Date.now()}-${Math.random().toString(36).slice(2)}`, // Add security token
         },
         body: JSON.stringify({ promptContext: context }),
       });
@@ -90,4 +97,16 @@ export const fetchGameEvent = async (context: PromptContext): Promise<EventRespo
   }
   // Should theoretically not be reached if MAX_RETRIES >= 0, but satisfies TS
   throw new Error('Max retries reached, failed to fetch game event.');
+};
+
+/**
+ * Secure version of fetchGameEvent that applies middleware
+ * 
+ * This version includes input validation, sanitization, and rate limiting
+ * 
+ * @param context - The prompt context to send to the API
+ * @returns Promise with the event response
+ */
+export const fetchGameEvent = async (context: PromptContext): Promise<EventResponse> => {
+  return withMiddleware(() => context, fetchEventRaw);
 }; 
